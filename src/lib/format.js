@@ -1,14 +1,21 @@
 import { CURRENCY } from './constants.js';
 
 /**
- * Format a price in Ghana Cedis — e.g. 25 → "GH₵ 25.00".
+ * Format a price in Ghana Cedis with thousands separators. Whole amounts
+ * drop the decimals, which are noise on every card:
+ * 6400 → "GH₵ 6,400", 1499.5 → "GH₵ 1,499.50".
  * @param {number|string} value
  * @returns {string}
  */
 export function formatPrice(value) {
   const amount = Number(value);
-  if (!Number.isFinite(amount)) return `${CURRENCY.symbol} 0.00`;
-  return `${CURRENCY.symbol} ${amount.toFixed(2)}`;
+  if (!Number.isFinite(amount)) return `${CURRENCY.symbol} 0`;
+  const decimals = Number.isInteger(amount) ? 0 : 2;
+  const formatted = amount.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  return `${CURRENCY.symbol} ${formatted}`;
 }
 
 /**

@@ -11,23 +11,27 @@ import {
 } from '../src/lib/format.js';
 
 describe('formatPrice', () => {
-  it('formats a number as Ghana Cedis with two decimals', () => {
-    expect(formatPrice(25)).toBe('GH₵ 25.00');
-    expect(formatPrice(1499.5)).toBe('GH₵ 1499.50');
+  it('drops decimals for whole amounts and groups thousands', () => {
+    expect(formatPrice(25)).toBe('GH₵ 25');
+    expect(formatPrice(6400)).toBe('GH₵ 6,400');
+  });
+
+  it('keeps two decimals when there are pesewas', () => {
+    expect(formatPrice(1499.5)).toBe('GH₵ 1,499.50');
   });
 
   it('accepts numeric strings (Supabase returns decimals as strings)', () => {
-    expect(formatPrice('45.00')).toBe('GH₵ 45.00');
+    expect(formatPrice('45.00')).toBe('GH₵ 45');
   });
 
   it('falls back to zero for junk input', () => {
-    expect(formatPrice(null)).toBe('GH₵ 0.00');
-    expect(formatPrice('abc')).toBe('GH₵ 0.00');
-    expect(formatPrice(undefined)).toBe('GH₵ 0.00');
+    expect(formatPrice(null)).toBe('GH₵ 0');
+    expect(formatPrice('abc')).toBe('GH₵ 0');
+    expect(formatPrice(undefined)).toBe('GH₵ 0');
   });
 
   it('formats zero as a real price, not a fallback', () => {
-    expect(formatPrice(0)).toBe('GH₵ 0.00');
+    expect(formatPrice(0)).toBe('GH₵ 0');
   });
 });
 
