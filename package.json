@@ -1,0 +1,31 @@
+{
+  "name": "peters-marketplace",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Buy & sell anything at St. Peter's Hostel, Kotei",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke": "node scripts/smoke.mjs",
+    "icons": "node scripts/generate-icons.mjs",
+    "db:check": "node scripts/check-db.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "playwright": "^1.64.1",
+    "sharp": "^0.35.5",
+    "terser": "^5.51.2",
+    "vite": "^7.3.7",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^4.1.12",
+    "workbox-build": "^7.4.1",
+    "workbox-window": "^7.4.1"
+  }
+}

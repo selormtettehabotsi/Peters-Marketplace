@@ -1,0 +1,25 @@
+/* ========================================
+   St. Peter's Marketplace — Master Stylesheet
+   Import order matters!
+   ======================================== */
+
+/* 1. Design tokens (variables) — must be first */
+@import './variables.css';
+
+/* 2. CSS Reset — normalize browser defaults */
+@import './reset.css';
+
+/* 3. Typography — font imports and text styles */
+@import './typography.css';
+
+/* 4. Component styles — buttons, cards, forms, etc. */
+@import './components.css';
+
+/* 5. Utility classes — layout helpers, spacing */
+@import './utilities.css';
+
+/* 6. Animations — keyframes, transitions, skeletons */
+@import './animations.css';
+
+/* 7. Page layouts — navbar, hero, auth, detail, dashboard, admin */
+@import './pages.css';
