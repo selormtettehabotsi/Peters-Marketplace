@@ -1,14 +1,33 @@
 import { isLoggedIn, isAdmin, getProfile, logOut } from '../lib/auth.js';
 import { getInitials, escapeHtml } from '../lib/format.js';
-import { navigate } from '../router.js';
+import { navigate, getCurrentPath } from '../router.js';
 import { icon } from './icons.js';
 import { showToast } from './toast.js';
 
 let listenersBound = false;
 
+/** "Kotei, Kumasi · Sat 24 Oct 2026" — the newspaper-style dateline. */
+function dateline() {
+  const date = new Date().toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  return `Kotei, Kumasi · ${date.replace(',', '')}`;
+}
+
 /**
- * Render the navbar into #navbar. Called on every route change so the
- * logged-in / logged-out state always matches the current session.
+ * Screens that hide the mobile tab bar: focused tasks (auth, the listing
+ * form) and the product page, whose own sticky contact bar takes the
+ * bottom edge.
+ */
+const TABBAR_HIDDEN = [/^\/auth\//, /^\/products\/[^/]+$/, /^\/dashboard\/(new|edit)/];
+
+/**
+ * Render the navbar into #navbar and the mobile tab bar. Called on every
+ * route change so the logged-in / logged-out state and the active tab
+ * always match the current session and screen.
  */
 export function renderNavbar() {
   const nav = document.getElementById('navbar');
@@ -17,13 +36,17 @@ export function renderNavbar() {
   const loggedIn = isLoggedIn();
   const profile = getProfile();
   const admin = isAdmin();
+  // The login/signup screens are the call to action; don't repeat it above them.
+  const onAuthScreen = getCurrentPath().startsWith('/auth/');
+  // The home page has its own big masthead, so the bar shows a dateline.
+  const onHome = getCurrentPath() === '/';
 
   nav.className = 'navbar';
   nav.innerHTML = `
     <div class="container flex items-center justify-between">
-      <a href="#/" class="navbar-logo">
-        <span class="logo-icon">${icon('store', { size: 26 })}</span>
-        <span class="logo-text">SP Market</span>
+      <a href="#/" class="navbar-brand${onHome ? ' show-dateline' : ''}" aria-label="SP Market home">
+        <span class="navbar-logo" aria-hidden="true">SP <span class="logo-accent">Market</span></span>
+        ${onHome ? `<span class="navbar-kicker" aria-hidden="true">${escapeHtml(dateline())}</span>` : ''}
       </a>
 
       <div class="search-bar hide-mobile">
@@ -58,20 +81,100 @@ export function renderNavbar() {
             >${escapeHtml(getInitials(profile?.full_name))}</button>
           </div>
         `
-            : `
-          <a href="#/auth/login" class="btn btn-secondary btn-sm">Log In</a>
+            : onAuthScreen
+              ? ''
+              : `
+          <a href="#/auth/login" class="btn btn-secondary btn-sm hide-mobile">Log In</a>
           <a href="#/auth/signup" class="btn btn-primary btn-sm hide-mobile">Sign Up</a>
         `
         }
-
-        <button class="btn btn-icon btn-ghost hide-desktop" id="mobile-menu-toggle" aria-label="Open menu" aria-expanded="false">
-          ${icon('menu')}
-        </button>
       </div>
     </div>
   `;
 
   bindNavbarEvents(nav);
+  watchMasthead(nav, onHome);
+  renderTabBar();
+}
+
+let mastheadObserver = null;
+
+/**
+ * On the home page the bar shows the dateline while the big masthead is on
+ * screen, and swaps to the SP MARKET wordmark once it scrolls away.
+ */
+function watchMasthead(nav, onHome) {
+  mastheadObserver?.disconnect();
+  mastheadObserver = null;
+
+  const brand = nav.querySelector('.navbar-brand');
+  const masthead = document.querySelector('.masthead-title');
+  if (!onHome || !brand || !masthead || typeof IntersectionObserver === 'undefined') return;
+
+  mastheadObserver = new IntersectionObserver(
+    ([entry]) => brand.classList.toggle('show-dateline', entry.isIntersecting),
+    // Count the masthead as gone once it's behind the sticky bar
+    { rootMargin: `-${nav.offsetHeight || 64}px 0px 0px 0px` }
+  );
+  mastheadObserver.observe(masthead);
+}
+
+/**
+ * Mobile bottom navigation — the thumb-reachable way around the app on
+ * phones. Hidden above 768px by CSS, and on the screens in TABBAR_HIDDEN.
+ */
+export function renderTabBar() {
+  let bar = document.getElementById('tabbar');
+  if (!bar) {
+    bar = document.createElement('nav');
+    bar.id = 'tabbar';
+    bar.className = 'tabbar';
+    bar.setAttribute('aria-label', 'Main');
+    document.body.appendChild(bar);
+  }
+
+  const path = getCurrentPath();
+  const hidden = TABBAR_HIDDEN.some((re) => re.test(path));
+  bar.hidden = hidden;
+  document.body.classList.toggle('has-tabbar', !hidden);
+  if (hidden) return;
+
+  const loggedIn = isLoggedIn();
+  const tabs = [
+    { href: '#/', label: 'Home', icon: 'home', active: path === '/' },
+    {
+      href: '#/products',
+      label: 'Browse',
+      icon: 'search',
+      active: path === '/products' || path.startsWith('/category/'),
+    },
+    {
+      href: loggedIn ? '#/dashboard/new' : '#/auth/signup',
+      label: 'Sell',
+      icon: 'plus',
+      primary: true,
+    },
+    loggedIn
+      ? {
+          href: '#/dashboard',
+          label: 'Account',
+          icon: 'user',
+          active: path === '/dashboard' || path === '/admin',
+        }
+      : { href: '#/auth/login', label: 'Log in', icon: 'login' },
+  ];
+
+  bar.innerHTML = tabs
+    .map(
+      (t) => `
+      <a href="${t.href}" class="tabbar-item${t.primary ? ' tabbar-sell' : ''}${t.active ? ' active' : ''}"
+         ${t.active ? 'aria-current="page"' : ''}>
+        <span class="tabbar-icon">${icon(t.icon, { size: t.primary ? 24 : 22 })}</span>
+        <span class="tabbar-label">${t.label}</span>
+      </a>
+    `
+    )
+    .join('');
 }
 
 function bindNavbarEvents(nav) {
@@ -94,16 +197,7 @@ function bindNavbarEvents(nav) {
     });
   }
 
-  // Mobile hamburger
-  const toggle = nav.querySelector('#mobile-menu-toggle');
-  if (toggle) {
-    toggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleMobileMenu(toggle);
-    });
-  }
-
-  // Close popovers on any outside click — bound once for the app's lifetime.
+  // Close the dropdown on any outside click — bound once for the app's lifetime.
   if (!listenersBound) {
     document.addEventListener('click', closeAllMenus);
     listenersBound = true;
@@ -111,10 +205,19 @@ function bindNavbarEvents(nav) {
 }
 
 function closeAllMenus() {
-  document.querySelectorAll('.dropdown-menu, .mobile-menu').forEach((el) => el.remove());
+  document.querySelectorAll('.dropdown-menu').forEach((el) => el.remove());
   document
-    .querySelectorAll('#nav-avatar-btn, #mobile-menu-toggle')
+    .querySelectorAll('#nav-avatar-btn')
     .forEach((btn) => btn.setAttribute('aria-expanded', 'false'));
+}
+
+/** Log out from anywhere in the app and return home. */
+export async function logOutAndGoHome() {
+  closeAllMenus();
+  await logOut();
+  showToast('Logged out', 'success');
+  navigate('/');
+  renderNavbar();
 }
 
 function toggleAvatarDropdown(nav) {
@@ -140,86 +243,13 @@ function toggleAvatarDropdown(nav) {
     <button class="dropdown-item danger" data-logout>Log Out</button>
   `;
 
-  menu.addEventListener('click', async (e) => {
+  menu.addEventListener('click', (e) => {
     if (e.target.closest('[data-logout]')) {
       e.stopPropagation();
-      closeAllMenus();
-      await logOut();
-      showToast('Logged out', 'success');
-      navigate('/');
-      renderNavbar();
+      logOutAndGoHome();
     }
   });
 
   wrapper.appendChild(menu);
   if (btn) btn.setAttribute('aria-expanded', 'true');
-}
-
-function toggleMobileMenu(toggle) {
-  const existing = document.querySelector('.mobile-menu');
-  closeAllMenus();
-  if (existing) return;
-
-  const loggedIn = isLoggedIn();
-  const menu = document.createElement('div');
-  menu.className = 'mobile-menu';
-  menu.innerHTML = `
-    <div class="search-bar" style="max-width:none;">
-      <span class="search-icon">${icon('search', { size: 18 })}</span>
-      <input type="search" class="form-input" id="mobile-search" placeholder="Search products..." aria-label="Search products" />
-    </div>
-    <a href="#/products" class="btn btn-ghost">Browse Products</a>
-    ${
-      loggedIn
-        ? `
-      <a href="#/dashboard" class="btn btn-ghost">My Dashboard</a>
-      <a href="#/dashboard/new" class="btn btn-ghost">New Listing</a>
-      ${isAdmin() ? '<a href="#/admin" class="btn btn-ghost">Admin Panel</a>' : ''}
-      <button class="btn btn-ghost" data-logout style="color: var(--color-danger);">Log Out</button>
-    `
-        : `
-      <a href="#/auth/login" class="btn btn-secondary">Log In</a>
-      <a href="#/auth/signup" class="btn btn-primary">Sign Up</a>
-    `
-    }
-  `;
-
-  // One handler for the whole panel: logout and links close the menu
-  // themselves, anything else (typing in the search box) must not bubble
-  // out to the document-level handler that closes it.
-  menu.addEventListener('click', async (e) => {
-    if (e.target.closest('[data-logout]')) {
-      closeAllMenus();
-      await logOut();
-      showToast('Logged out', 'success');
-      navigate('/');
-      renderNavbar();
-      return;
-    }
-
-    if (e.target.closest('a')) {
-      closeAllMenus();
-      return;
-    }
-
-    e.stopPropagation();
-  });
-
-  const search = menu.querySelector('#mobile-search');
-  search.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter') return;
-    const term = e.target.value.trim();
-    closeAllMenus();
-    navigate(term ? `/products?q=${encodeURIComponent(term)}` : '/products');
-  });
-
-  // Anchor the panel to the navbar's actual bottom edge, which sits lower
-  // than --navbar-height whenever a banner is shown above it.
-  const navbar = document.getElementById('navbar');
-  const bottom = navbar ? navbar.getBoundingClientRect().bottom : 64;
-  menu.style.top = `${Math.max(bottom, 0)}px`;
-  menu.style.maxHeight = `calc(100vh - ${Math.max(bottom, 0)}px)`;
-
-  document.body.appendChild(menu);
-  toggle.setAttribute('aria-expanded', 'true');
 }
