@@ -71,7 +71,7 @@ export default async function renderAdmin(params, container) {
 
       <div id="tab-content">
         <div class="stats-row">
-          ${Array.from({ length: 8 }, () => '<div class="skeleton" style="height:118px;"></div>').join('')}
+          ${Array.from({ length: 8 }, () => '<div class="skeleton" style="height:74px;"></div>').join('')}
         </div>
       </div>
     </div>
@@ -116,9 +116,11 @@ export default async function renderAdmin(params, container) {
         ${STAT_TILES.map(
           (tile) => `
           <div class="stat-card">
-            <span class="stat-icon">${icon(tile.icon, { size: 20 })}</span>
-            <div class="stat-value">${stats[tile.key].toLocaleString()}</div>
-            <div class="stat-label">${tile.label}</div>
+            <span class="stat-icon">${icon(tile.icon, { size: 18 })}</span>
+            <div>
+              <div class="stat-value">${stats[tile.key].toLocaleString()}</div>
+              <div class="stat-label">${tile.label}</div>
+            </div>
           </div>
         `
         ).join('')}

@@ -37,74 +37,79 @@ async function renderForm({ mode, product }, container) {
         </p>
       </div>
 
-      <form id="listing-form" novalidate>
-        <div class="form-group">
-          <label class="form-label">Product Images</label>
+      <form id="listing-form" class="listing-form" novalidate>
+        <section class="form-card" aria-labelledby="photos-heading">
+          <h2 class="form-card-title" id="photos-heading">Photos</h2>
+          <p class="form-card-hint">The first photo is the cover. Drag to reorder.</p>
           <div id="image-widget"></div>
-        </div>
+          <div id="video-widget" class="mt-4"></div>
+        </section>
 
-        <div class="form-group">
-          <label class="form-label">Product Video</label>
-          <div id="video-widget"></div>
-        </div>
+        <section class="form-card" aria-labelledby="details-heading">
+          <h2 class="form-card-title" id="details-heading">Details</h2>
 
-        ${field({
-          name: 'title',
-          label: 'Title',
-          placeholder: 'e.g. HP Pavilion Laptop, 8GB RAM',
-          required: true,
-          maxlength: 100,
-          value: escapeHtml(product?.title || ''),
-        })}
-
-        ${field({
-          name: 'description',
-          label: 'Description',
-          placeholder: 'Describe the condition, specs, and anything a buyer should know.',
-          textarea: true,
-          maxlength: 1000,
-          value: escapeHtml(product?.description || ''),
-        })}
-
-        <div class="form-row">
           ${field({
-            name: 'price',
-            label: 'Price (GH₵)',
-            type: 'number',
-            placeholder: '0.00',
+            name: 'title',
+            label: 'Title',
+            placeholder: 'e.g. HP Pavilion Laptop, 8GB RAM',
             required: true,
-            value: product?.price ?? '',
+            maxlength: 100,
+            value: escapeHtml(product?.title || ''),
           })}
+
           ${field({
-            name: 'category',
-            label: 'Category',
+            name: 'description',
+            label: 'Description',
+            placeholder: 'Describe the condition, specs, and anything a buyer should know.',
+            textarea: true,
+            maxlength: 1000,
+            value: escapeHtml(product?.description || ''),
+          })}
+        </section>
+
+        <section class="form-card" aria-labelledby="price-heading">
+          <h2 class="form-card-title" id="price-heading">Price &amp; condition</h2>
+          <div class="form-row">
+            ${field({
+              name: 'price',
+              label: 'Price (GH₵)',
+              type: 'number',
+              placeholder: '0.00',
+              required: true,
+              value: product?.price ?? '',
+            })}
+            ${field({
+              name: 'category',
+              label: 'Category',
+              required: true,
+              value: product?.category || '',
+              options: [
+                { value: '', label: 'Select category' },
+                ...CATEGORIES.map((c) => ({ value: c.id, label: c.name })),
+              ],
+            })}
+          </div>
+
+          ${field({
+            name: 'condition',
+            label: 'Condition',
             required: true,
-            value: product?.category || '',
+            value: product?.condition || '',
             options: [
-              { value: '', label: 'Select category' },
-              ...CATEGORIES.map((c) => ({ value: c.id, label: c.name })),
+              { value: '', label: 'Select condition' },
+              ...CONDITIONS.map((c) => ({ value: c.id, label: c.name })),
             ],
           })}
-        </div>
 
-        ${field({
-          name: 'condition',
-          label: 'Condition',
-          required: true,
-          value: product?.condition || '',
-          options: [
-            { value: '', label: 'Select condition' },
-            ...CONDITIONS.map((c) => ({ value: c.id, label: c.name })),
-          ],
-        })}
+        </section>
 
         <div class="upload-progress hidden" id="submit-progress">
           <div class="upload-progress-fill" id="submit-progress-fill"></div>
         </div>
         <p class="text-sm text-muted hidden" id="submit-status" aria-live="polite"></p>
 
-        <div class="flex gap-3 justify-end mt-6">
-          <a href="#/dashboard" class="btn btn-ghost">Cancel</a>
+        <div class="form-actions">
+          <a href="#/dashboard" class="btn btn-ghost btn-lg">Cancel</a>
           <button type="submit" class="btn btn-primary btn-lg" id="listing-submit">
             ${isEdit ? 'Save Changes' : 'Publish Listing'}
           </button>

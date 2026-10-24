@@ -1,4 +1,4 @@
-import { getUser, getProfile, refreshProfile } from '../lib/auth.js';
+import { getUser, getProfile, refreshProfile, isAdmin } from '../lib/auth.js';
 import {
   fetchMyProducts,
   calculateSellerStats,
@@ -7,12 +7,13 @@ import {
   fetchProduct,
 } from '../lib/api.js';
 import { deleteProductMedia } from '../lib/storage.js';
-import { formatPrice, formatDate, escapeHtml } from '../lib/format.js';
+import { formatPrice, formatDate, escapeHtml, getInitials } from '../lib/format.js';
 import { cardImageUrl } from '../components/product-card.js';
 import { icon } from '../components/icons.js';
 import { showToast } from '../components/toast.js';
 import { showConfirmModal } from '../components/modal.js';
 import { watchNavigation } from '../router.js';
+import { logOutAndGoHome } from '../components/navbar.js';
 
 const STAT_TILES = [
   { key: 'total', label: 'Total Listings', icon: 'package' },
@@ -39,15 +40,21 @@ export default async function renderDashboard(params, container) {
   const profile = getProfile();
 
   container.innerHTML = `
-    <div class="container section-sm">
-      <div class="page-header">
-        <h1 class="page-title">My Dashboard</h1>
-        <p class="page-subtitle">
-          Welcome, ${escapeHtml(profile?.full_name || 'seller')}${
-            profile?.room_number ? ` (Room ${escapeHtml(profile.room_number)})` : ''
-          }
-        </p>
-      </div>
+    <div class="container section-sm dashboard">
+      <header class="dash-header">
+        <span class="avatar avatar-lg avatar-placeholder" aria-hidden="true">
+          ${escapeHtml(getInitials(profile?.full_name))}
+        </span>
+        <div class="dash-header-text">
+          <h1 class="dash-title">Hi, ${escapeHtml(profile?.full_name?.split(' ')[0] || 'seller')}</h1>
+          <p class="dash-subtitle">
+            ${profile?.room_number ? `Room ${escapeHtml(profile.room_number)} · ` : ''}Your listings and stats
+          </p>
+        </div>
+        <a href="#/dashboard/new" class="btn btn-primary hide-mobile${profile?.is_banned ? ' disabled' : ''}">
+          ${icon('plus', { size: 16 })} New Listing
+        </a>
+      </header>
 
       ${
         profile?.is_banned
@@ -61,28 +68,51 @@ export default async function renderDashboard(params, container) {
         ${STAT_TILES.map(
           (tile) => `
           <div class="stat-card">
-            <span class="stat-icon">${icon(tile.icon, { size: 20 })}</span>
-            <div class="stat-value" data-stat="${tile.key}">0</div>
-            <div class="stat-label">${tile.label}</div>
+            <span class="stat-icon">${icon(tile.icon, { size: 18 })}</span>
+            <div>
+              <div class="stat-value" data-stat="${tile.key}">0</div>
+              <div class="stat-label">${tile.label}</div>
+            </div>
           </div>
         `
         ).join('')}
       </div>
 
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="h3">My Listings</h2>
-        <a href="#/dashboard/new" class="btn btn-primary${profile?.is_banned ? ' disabled' : ''}">
-          ${icon('plus', { size: 16 })} New Listing
-        </a>
-      </div>
+      <section class="dash-section">
+        <h2 class="section-title">My listings</h2>
+        <div id="listings-area">
+          <div class="skeleton" style="height:96px; margin-bottom: var(--space-3);"></div>
+          <div class="skeleton" style="height:96px; margin-bottom: var(--space-3);"></div>
+          <div class="skeleton" style="height:96px;"></div>
+        </div>
+      </section>
 
-      <div id="listings-area">
-        <div class="skeleton skeleton-text" style="height:3em;"></div>
-        <div class="skeleton skeleton-text" style="height:3em;"></div>
-        <div class="skeleton skeleton-text" style="height:3em;"></div>
-      </div>
+      <section class="dash-section">
+        <h2 class="section-title">Account</h2>
+        <div class="settings-list">
+          <div class="settings-item">
+            ${icon('user', { size: 20 })}
+            <span class="settings-label">${escapeHtml(profile?.email || '')}</span>
+          </div>
+          ${
+            isAdmin()
+              ? `<a href="#/admin" class="settings-item">
+                   ${icon('chart', { size: 20 })}
+                   <span class="settings-label">Admin panel</span>
+                   ${icon('chevron-right', { size: 18, className: 'settings-chevron' })}
+                 </a>`
+              : ''
+          }
+          <button type="button" class="settings-item settings-danger" data-logout>
+            ${icon('logout', { size: 20 })}
+            <span class="settings-label">Log out</span>
+          </button>
+        </div>
+      </section>
     </div>
   `;
+
+  container.querySelector('[data-logout]').addEventListener('click', logOutAndGoHome);
 
   const area = container.querySelector('#listings-area');
 
@@ -123,26 +153,9 @@ export default async function renderDashboard(params, container) {
     }
 
     area.innerHTML = `
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th scope="col">Image</th>
-            <th scope="col">Title</th>
-            <th scope="col">Price</th>
-            <th scope="col">Status</th>
-            <th scope="col">Views</th>
-            <th scope="col">Created</th>
-            <th scope="col">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${products.map((p) => listingRow(p)).join('')}
-        </tbody>
-      </table>
-
-      <div class="admin-cards">
-        ${products.map((p) => listingCard(p)).join('')}
-      </div>
+      <ul class="listing-list">
+        ${products.map((p) => listingItem(p)).join('')}
+      </ul>
     `;
   }
 
@@ -154,53 +167,37 @@ export default async function renderDashboard(params, container) {
   function actionButtons(product) {
     const sold = product.status === 'sold';
     return `
-      <div class="listing-row-actions">
-        <a href="#/dashboard/edit/${product.id}" class="btn btn-ghost btn-sm" aria-label="Edit ${escapeHtml(product.title)}">
-          ${icon('edit', { size: 14 })} Edit
+      <div class="listing-actions">
+        <a href="#/dashboard/edit/${product.id}" class="listing-action" aria-label="Edit ${escapeHtml(product.title)}">
+          ${icon('edit', { size: 16 })} <span>Edit</span>
         </a>
-        <button class="btn btn-ghost btn-sm" data-toggle="${product.id}" data-status="${product.status}">
-          ${icon(sold ? 'check-circle' : 'tag', { size: 14 })} ${sold ? 'Mark Available' : 'Mark Sold'}
+        <button class="listing-action" data-toggle="${product.id}" data-status="${product.status}">
+          ${icon(sold ? 'check-circle' : 'tag', { size: 16 })} <span>${sold ? 'Relist' : 'Mark sold'}</span>
         </button>
-        <button class="btn btn-ghost btn-sm" data-delete="${product.id}"
-                style="color: var(--color-danger);" aria-label="Delete ${escapeHtml(product.title)}">
-          ${icon('trash', { size: 14 })} Delete
+        <button class="listing-action listing-action-danger" data-delete="${product.id}"
+                aria-label="Delete ${escapeHtml(product.title)}">
+          ${icon('trash', { size: 16 })} <span>Delete</span>
         </button>
       </div>
     `;
   }
 
-  function listingRow(product) {
+  function listingItem(product) {
     return `
-      <tr>
-        <td><img src="${escapeHtml(cardImageUrl(product))}" class="thumb" alt="" loading="lazy" /></td>
-        <td>
-          <a href="#/products/${product.id}" class="font-medium">${escapeHtml(product.title)}</a>
-        </td>
-        <td>${escapeHtml(formatPrice(product.price))}</td>
-        <td>${statusBadge(product)}</td>
-        <td>${Number(product.views_count || 0)}</td>
-        <td>${escapeHtml(formatDate(product.created_at))}</td>
-        <td>${actionButtons(product)}</td>
-      </tr>
-    `;
-  }
-
-  function listingCard(product) {
-    return `
-      <div class="admin-card">
-        <div class="flex items-center gap-3 mb-4">
-          <img src="${escapeHtml(cardImageUrl(product))}" class="thumb" alt="" loading="lazy" />
-          <div class="flex-1">
-            <a href="#/products/${product.id}" class="font-semibold">${escapeHtml(product.title)}</a>
-            <p class="text-sm text-muted" style="margin:0;">
-              ${escapeHtml(formatPrice(product.price))} ·
-              ${Number(product.views_count || 0)} views
+      <li class="listing-item${product.status === 'sold' ? ' is-sold' : ''}">
+        <a href="#/products/${product.id}" class="listing-main">
+          <img src="${escapeHtml(cardImageUrl(product))}" class="listing-thumb" alt="" loading="lazy" />
+          <div class="listing-info">
+            <p class="listing-price">${escapeHtml(formatPrice(product.price))}</p>
+            <p class="listing-title line-clamp-2">${escapeHtml(product.title)}</p>
+            <p class="listing-meta">
+              ${statusBadge(product)}
+              <span>${Number(product.views_count || 0)} views · ${escapeHtml(formatDate(product.created_at))}</span>
             </p>
           </div>
-          ${statusBadge(product)}
-        </div>
+        </a>
         ${actionButtons(product)}
-      </div>
+      </li>
     `;
   }
 
