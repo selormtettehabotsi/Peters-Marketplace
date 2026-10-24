@@ -3,6 +3,8 @@
  * Every form in the app reports problems the same way.
  */
 
+import { icon } from '../components/icons.js';
+
 /**
  * Show a validation error under a field and mark the input.
  * @param {HTMLElement} form
@@ -79,6 +81,35 @@ export function readForm(form) {
 }
 
 /**
+ * Flip a password field between hidden and visible.
+ * @param {HTMLButtonElement} button - the field's [data-toggle-password] button
+ */
+export function togglePasswordVisibility(button) {
+  const input = button.parentElement.querySelector('input');
+  if (!input) return;
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  button.setAttribute('aria-pressed', String(show));
+  button.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  button.innerHTML = icon(show ? 'eye-off' : 'eye', { size: 18 });
+}
+
+let passwordTogglesBound = false;
+
+/**
+ * One delegated listener drives every password toggle the app renders, so
+ * pages built with field() need no wiring of their own. Safe to call twice.
+ */
+export function initPasswordToggles() {
+  if (passwordTogglesBound) return;
+  passwordTogglesBound = true;
+  document.addEventListener('click', (e) => {
+    const button = e.target.closest('[data-toggle-password]');
+    if (button) togglePasswordVisibility(button);
+  });
+}
+
+/**
  * Markup for one labelled field with an error slot.
  * @param {Object} config
  * @returns {string} HTML
@@ -120,6 +151,14 @@ export function field({
     </select>`;
   } else if (textarea) {
     control = `<textarea class="form-textarea" ${attrs}>${value}</textarea>`;
+  } else if (type === 'password') {
+    control = `<div class="password-field">
+      <input class="form-input" type="password" ${attrs} value="${value}" />
+      <button type="button" class="password-toggle" data-toggle-password
+              aria-label="Show password" aria-pressed="false" aria-controls="${id}">
+        ${icon('eye', { size: 18 })}
+      </button>
+    </div>`;
   } else {
     control = `<input class="form-input" type="${type}" ${attrs} value="${value}" />`;
   }

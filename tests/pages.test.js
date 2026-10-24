@@ -14,7 +14,14 @@ vi.mock('../src/lib/image-utils.js', async (importOriginal) => ({
   generateThumbnail: async (file) => file,
 }));
 import { friendlyAuthError } from '../src/lib/auth.js';
-import { applyErrors, clearFieldErrors, setButtonLoading, readForm } from '../src/lib/form-utils.js';
+import {
+  applyErrors,
+  clearFieldErrors,
+  setButtonLoading,
+  readForm,
+  field,
+  initPasswordToggles,
+} from '../src/lib/form-utils.js';
 
 describe('product listing filters', () => {
   it('defaults every filter when the URL is bare', () => {
@@ -289,5 +296,38 @@ describe('form utilities', () => {
     form.querySelector('[name="email"]').value = '  kwame@test.com  ';
     form.querySelector('[name="password"]').value = 'secret';
     expect(readForm(form)).toEqual({ email: 'kwame@test.com', password: 'secret' });
+  });
+});
+
+describe('password visibility toggle', () => {
+  beforeEach(() => {
+    document.body.innerHTML = field({ name: 'password', label: 'Password', type: 'password' });
+    initPasswordToggles();
+  });
+
+  it('renders an eye button that starts with the password hidden', () => {
+    const button = document.querySelector('[data-toggle-password]');
+    expect(document.querySelector('[name="password"]').type).toBe('password');
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(button.getAttribute('aria-label')).toBe('Show password');
+  });
+
+  it('shows the password on click and hides it again on a second click', () => {
+    const input = document.querySelector('[name="password"]');
+    const button = document.querySelector('[data-toggle-password]');
+
+    button.click();
+    expect(input.type).toBe('text');
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.getAttribute('aria-label')).toBe('Hide password');
+
+    button.click();
+    expect(input.type).toBe('password');
+    expect(button.getAttribute('aria-label')).toBe('Show password');
+  });
+
+  it('does not add a toggle to other input types', () => {
+    document.body.innerHTML = field({ name: 'email', label: 'Email', type: 'email' });
+    expect(document.querySelector('[data-toggle-password]')).toBeNull();
   });
 });

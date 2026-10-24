@@ -7,6 +7,7 @@ import { renderNavbar } from './components/navbar.js';
 import { renderFooter } from './components/footer.js';
 import { icon } from './components/icons.js';
 import { isConfigured } from './supabase.js';
+import { initPasswordToggles } from './lib/form-utils.js';
 
 // Pages
 import renderHome from './pages/home.js';
@@ -163,6 +164,8 @@ async function initApp() {
     renderNavbar();
     // Overlays live on document.body, so replacing #page-content does not
     // remove them. Close them explicitly, which also frees their listeners.
+    // A page may have locked scrolling for a bottom sheet it no longer shows.
+    document.body.classList.remove('sheet-open');
     document.querySelectorAll('.gallery-lightbox').forEach((box) => {
       if (typeof box.close === 'function') box.close();
       else box.remove();
@@ -170,6 +173,7 @@ async function initApp() {
   });
 
   registerRoutes();
+  initPasswordToggles();
   initRouter();
   watchConnection();
   setupInstallPrompt();
