@@ -3,7 +3,6 @@ import { validateLogin, isValid } from '../lib/validation.js';
 import { applyErrors, clearFieldErrors, setButtonLoading, readForm, field } from '../lib/form-utils.js';
 import { navigate } from '../router.js';
 import { showToast } from '../components/toast.js';
-import { icon } from '../components/icons.js';
 import { isConfigured } from '../supabase.js';
 
 /**
@@ -14,11 +13,15 @@ import { isConfigured } from '../supabase.js';
 export default function renderLogin(params, container) {
   container.innerHTML = `
     <section class="auth-page">
+      <figure class="auth-photo">
+        <img src="/images/hostel/hostel-building-800.webp" alt="St. Peter's Hostel in Kotei" width="800" height="450" />
+        <figcaption>St. Peter's Hostel, Kotei</figcaption>
+      </figure>
       <div class="auth-card card">
         <div class="card-body">
           <div class="auth-header">
-            <span class="auth-logo">${icon('store', { size: 32 })}</span>
-            <h2>Welcome Back</h2>
+            <span class="auth-logo" aria-hidden="true">SP <span>Market</span></span>
+            <h1 class="auth-title">Welcome back</h1>
             <p class="text-muted">Log in to St. Peter's Marketplace</p>
           </div>
 
@@ -43,7 +46,7 @@ export default function renderLogin(params, container) {
               name: 'password',
               label: 'Password',
               type: 'password',
-              placeholder: '••••••••',
+              placeholder: 'Your password',
               required: true,
               autocomplete: 'current-password',
             })}
@@ -53,8 +56,8 @@ export default function renderLogin(params, container) {
           </form>
 
           <p class="auth-footer">
-            Don't have an account?
-            <a href="#/auth/signup" class="text-primary font-semibold">Sign Up</a>
+            New to SP Market?
+            <a href="#/auth/signup" class="auth-switch">Create an account</a>
           </p>
         </div>
       </div>

@@ -6,20 +6,32 @@ import { showToast } from '../components/toast.js';
 import { icon } from '../components/icons.js';
 import { isConfigured } from '../supabase.js';
 
+/** Fields collected on each step; errors are routed back to their step. */
+const STEP_FIELDS = {
+  1: ['fullName', 'email', 'password'],
+  2: ['roomNumber', 'phone', 'whatsapp'],
+};
+
 /**
- * Signup page — collects the contact details a buyer needs to reach a seller.
+ * Signup page — two short steps: the account itself, then the contact
+ * details a buyer needs to reach a seller. The password has a show toggle,
+ * so there is no separate "confirm password" field to fill in.
  * @param {Object} params
  * @param {HTMLElement} container
  */
 export default function renderSignup(params, container) {
   container.innerHTML = `
     <section class="auth-page">
-      <div class="auth-card card" style="max-width: 520px;">
+      <figure class="auth-photo">
+        <img src="/images/hostel/hostel-building-800.webp" alt="St. Peter's Hostel in Kotei" width="800" height="450" />
+        <figcaption>St. Peter's Hostel, Kotei</figcaption>
+      </figure>
+      <div class="auth-card card">
         <div class="card-body">
           <div class="auth-header">
-            <span class="auth-logo">${icon('store', { size: 32 })}</span>
-            <h2>Join the Marketplace</h2>
-            <p class="text-muted">Start buying and selling at St. Peter's Hostel</p>
+            <span class="auth-logo" aria-hidden="true">SP <span>Market</span></span>
+            <h1 class="auth-title">Create your account</h1>
+            <p class="text-muted">Buy and sell with your hostel mates</p>
           </div>
 
           ${
@@ -30,76 +42,90 @@ export default function renderSignup(params, container) {
               : ''
           }
 
+          <ol class="stepper" aria-label="Signup progress">
+            <li class="stepper-step active" data-stepper="1"><span class="stepper-dot">1</span> Account</li>
+            <li class="stepper-line" aria-hidden="true"></li>
+            <li class="stepper-step" data-stepper="2"><span class="stepper-dot">2</span> Contact</li>
+          </ol>
+
           <form id="signup-form" novalidate>
-            ${field({
-              name: 'fullName',
-              label: 'Full Name',
-              placeholder: 'Kwame Mensah',
-              required: true,
-              autocomplete: 'name',
-            })}
-            ${field({
-              name: 'email',
-              label: 'Email',
-              type: 'email',
-              placeholder: 'your@email.com',
-              required: true,
-              autocomplete: 'email',
-            })}
-
-            <div class="form-row">
+            <fieldset class="signup-step" data-step="1">
+              <legend class="sr-only">Step 1 of 2: your account</legend>
               ${field({
-                name: 'phone',
-                label: 'Phone Number',
-                type: 'tel',
-                placeholder: '0XX XXX XXXX',
+                name: 'fullName',
+                label: 'Full name',
+                placeholder: 'Kwame Mensah',
                 required: true,
-                autocomplete: 'tel',
+                autocomplete: 'name',
               })}
               ${field({
-                name: 'whatsapp',
-                label: 'WhatsApp Number',
-                type: 'tel',
-                placeholder: 'Same as phone if empty',
-                autocomplete: 'tel',
+                name: 'email',
+                label: 'Email',
+                type: 'email',
+                placeholder: 'your@email.com',
+                required: true,
+                autocomplete: 'email',
               })}
-            </div>
-
-            ${field({
-              name: 'roomNumber',
-              label: 'Room Number',
-              placeholder: 'e.g. B204',
-              required: true,
-            })}
-
-            <div class="form-row">
               ${field({
                 name: 'password',
                 label: 'Password',
                 type: 'password',
-                placeholder: '••••••••',
+                placeholder: 'At least 6 characters',
                 required: true,
                 autocomplete: 'new-password',
-                hint: 'At least 6 characters',
+              })}
+              <button type="button" class="btn btn-primary btn-full btn-lg" id="signup-next">
+                Continue ${icon('arrow-right', { size: 18 })}
+              </button>
+            </fieldset>
+
+            <fieldset class="signup-step" data-step="2" hidden>
+              <legend class="sr-only">Step 2 of 2: how buyers reach you</legend>
+              <p class="step-intro">Buyers use these to reach you about your listings.</p>
+              ${field({
+                name: 'roomNumber',
+                label: 'Room number',
+                placeholder: 'e.g. B204',
+                required: true,
               })}
               ${field({
-                name: 'confirmPassword',
-                label: 'Confirm Password',
-                type: 'password',
-                placeholder: '••••••••',
+                name: 'phone',
+                label: 'Phone number',
+                type: 'tel',
+                placeholder: '024 123 4567',
                 required: true,
-                autocomplete: 'new-password',
+                autocomplete: 'tel',
               })}
-            </div>
 
-            <button type="submit" class="btn btn-primary btn-full btn-lg" id="signup-submit">
-              Create Account
-            </button>
+              <label class="checkbox-row">
+                <input type="checkbox" id="whatsapp-same" checked />
+                <span>I use this number on WhatsApp</span>
+              </label>
+
+              <div id="whatsapp-wrap" hidden>
+                ${field({
+                  name: 'whatsapp',
+                  label: 'WhatsApp number',
+                  type: 'tel',
+                  placeholder: '024 123 4567',
+                  autocomplete: 'tel',
+                })}
+              </div>
+
+              <div class="step-actions">
+                <button type="button" class="btn btn-secondary btn-lg" id="signup-back">
+                  ${icon('arrow-left', { size: 18 })} Back
+                </button>
+                <button type="submit" class="btn btn-primary btn-lg" id="signup-submit">
+                  Create account
+                </button>
+              </div>
+            </fieldset>
           </form>
 
           <p class="auth-footer">
             Already have an account?
-            <a href="#/auth/login" class="text-primary font-semibold">Log In</a>
+            <a href="#/auth/login" class="auth-switch">Log in</a>
           </p>
         </div>
       </div>
@@ -108,6 +134,35 @@ export default function renderSignup(params, container) {
 
   const form = container.querySelector('#signup-form');
   const submit = container.querySelector('#signup-submit');
+  const sameWhatsapp = container.querySelector('#whatsapp-same');
+  const whatsappWrap = container.querySelector('#whatsapp-wrap');
+
+  function showStep(step) {
+    form.querySelectorAll('.signup-step').forEach((fs) => {
+      fs.hidden = Number(fs.dataset.step) !== step;
+    });
+    container.querySelectorAll('[data-stepper]').forEach((el) => {
+      const n = Number(el.dataset.stepper);
+      el.classList.toggle('active', n === step);
+      el.classList.toggle('done', n < step);
+    });
+    form.querySelector(`[data-step="${step}"] input`)?.focus();
+  }
+
+  /** Form data with the fields this design no longer asks for filled in. */
+  function readSignup() {
+    const data = readForm(form);
+    data.confirmPassword = data.password;
+    if (sameWhatsapp.checked) data.whatsapp = '';
+    return data;
+  }
+
+  /** Only the errors that belong to the given step. */
+  function errorsFor(step, errors) {
+    return Object.fromEntries(
+      Object.entries(errors).filter(([name]) => STEP_FIELDS[step].includes(name))
+    );
+  }
 
   form.addEventListener('input', (e) => {
     if (e.target.classList.contains('error')) {
@@ -118,14 +173,34 @@ export default function renderSignup(params, container) {
     }
   });
 
+  sameWhatsapp.addEventListener('change', () => {
+    whatsappWrap.hidden = sameWhatsapp.checked;
+    if (!sameWhatsapp.checked) whatsappWrap.querySelector('input').focus();
+  });
+
+  container.querySelector('#signup-next').addEventListener('click', () => {
+    clearFieldErrors(form);
+    const stepErrors = errorsFor(1, validateSignup(readSignup()));
+    if (!isValid(stepErrors)) {
+      applyErrors(form, stepErrors);
+      return;
+    }
+    showStep(2);
+  });
+
+  container.querySelector('#signup-back').addEventListener('click', () => showStep(1));
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearFieldErrors(form);
 
-    const data = readForm(form);
+    const data = readSignup();
     const errors = validateSignup(data);
     if (!isValid(errors)) {
-      applyErrors(form, errors);
+      // Send the user back to step 1 if anything there needs fixing.
+      const first = isValid(errorsFor(1, errors)) ? 2 : 1;
+      showStep(first);
+      applyErrors(form, errorsFor(first, errors));
       return;
     }
 
