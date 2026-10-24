@@ -137,6 +137,28 @@ export async function fetchMarketplaceStats() {
 }
 
 /**
+ * How many available listings each category has, for the home page's
+ * category line. One small query of a single column, counted client-side —
+ * cheap at hostel scale.
+ * @returns {Promise<{counts: Object<string, number>, error: string|null}>}
+ */
+export async function fetchCategoryCounts() {
+  const { data, error } = await supabase
+    .from('products')
+    .select('category')
+    .eq('status', 'available')
+    .eq('is_flagged', false);
+
+  if (error) return { counts: {}, error: error.message };
+
+  const counts = {};
+  for (const row of data || []) {
+    counts[row.category] = (counts[row.category] || 0) + 1;
+  }
+  return { counts, error: null };
+}
+
+/**
  * Fetch a single product with the full seller profile joined.
  * @param {string} id
  */
