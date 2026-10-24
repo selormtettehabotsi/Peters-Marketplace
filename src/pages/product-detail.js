@@ -72,38 +72,31 @@ export default async function renderProductDetail(params, container) {
   container.innerHTML = `
     <div class="container">
       <a href="#/products" class="back-link">
-        ${icon('arrow-left', { size: 16 })} Back to Products
+        ${icon('arrow-left', { size: 16 })} Back to listings
       </a>
 
       <div class="product-detail">
         <div id="media-column"></div>
 
         <div class="product-info">
-          <span class="badge badge-${isSold ? 'danger' : 'success'}">
-            ${isSold ? 'Sold' : 'Available'}
-          </span>
+          <div class="detail-kicker">
+            <span class="${isSold ? 'detail-sold' : 'detail-available'}">${isSold ? 'Sold' : 'Available'}</span>
+            <span>${escapeHtml(condition.name)}</span>
+            <a href="#/products?category=${escapeHtml(category.id)}">${escapeHtml(category.name)}</a>
+          </div>
 
           <h1 class="product-detail-title">${escapeHtml(product.title)}</h1>
           <p class="product-detail-price${isSold ? ' is-sold' : ''}">
             ${escapeHtml(formatPrice(product.price))}
           </p>
 
-          <div class="product-tags">
-            <span class="badge badge-${condition.badge}">${escapeHtml(condition.name)}</span>
-            <span class="badge badge-gray">
-              ${icon(category.icon, { size: 14 })} ${escapeHtml(category.name)}
-            </span>
-          </div>
-
           <div class="product-description">
-            <h3>Description</h3>
+            <h2 class="cap">Description</h2>
             <p>${escapeHtml(product.description || 'No description provided.')}</p>
           </div>
 
-          <div class="divider"></div>
-
           <div class="seller-info">
-            <h3>Seller</h3>
+            <h2 class="cap">Seller</h2>
             <div class="seller-card flex items-center gap-4">
               ${
                 seller.avatar_url
@@ -111,12 +104,8 @@ export default async function renderProductDetail(params, container) {
                   : `<span class="avatar avatar-lg avatar-placeholder" aria-hidden="true">${escapeHtml(getInitials(seller.full_name))}</span>`
               }
               <div>
-                <p class="font-semibold" style="margin:0;">
-                  ${escapeHtml(seller.full_name || 'Unknown seller')}
-                </p>
-                <p class="text-sm text-muted icon-row" style="margin:0;">
-                  ${icon('home', { size: 14 })} Room ${escapeHtml(seller.room_number || 'N/A')}
-                </p>
+                <p class="font-semibold">${escapeHtml(seller.full_name || 'Unknown seller')}</p>
+                <p class="mono text-sm text-muted">Room ${escapeHtml(seller.room_number || 'N/A')}</p>
               </div>
             </div>
           </div>
@@ -132,31 +121,27 @@ export default async function renderProductDetail(params, container) {
                 rel="noopener noreferrer"
                 class="btn btn-whatsapp btn-lg btn-full${whatsappNumber ? '' : ' disabled'}"
               >
-                ${icon('whatsapp', { size: 18 })} Chat on WhatsApp
+                ${icon('whatsapp', { size: 18 })} <span><span class="btn-long">Chat on </span>WhatsApp</span>
               </a>
               <a
                 href="tel:${escapeHtml(seller.phone || '')}"
                 class="btn btn-call btn-lg btn-full${seller.phone ? '' : ' disabled'}"
               >
-                ${icon('phone', { size: 18 })} Call Seller
+                ${icon('phone', { size: 18 })} <span>Call<span class="btn-long"> Seller</span></span>
               </a>
             </div>
           `
           }
 
-          <div class="product-meta-detail text-sm text-muted">
-            <span class="icon-row">
-              ${icon('calendar', { size: 14 })} Listed ${escapeHtml(timeAgo(product.created_at))}
-            </span>
-            <span class="icon-row">
-              ${icon('eye', { size: 14 })} ${Number(product.views_count || 0)} views
-            </span>
+          <div class="product-meta-detail">
+            <span>Listed ${escapeHtml(timeAgo(product.created_at))}</span>
+            <span>${Number(product.views_count || 0)} views</span>
           </div>
         </div>
       </div>
 
-      <section class="section" id="related-section">
-        <h2 class="mb-6">More in ${escapeHtml(category.name)}</h2>
+      <section class="home-section" id="related-section">
+        <h2 class="section-title">More in ${escapeHtml(category.name)}</h2>
         <div class="product-grid stagger-children" id="related-grid"></div>
       </section>
     </div>

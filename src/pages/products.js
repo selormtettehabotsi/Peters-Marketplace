@@ -74,31 +74,50 @@ export default async function renderProducts(params, container) {
         <p class="page-subtitle">Everything on sale at St. Peter's Hostel</p>
       </div>
 
-      <div class="search-bar mb-6" style="max-width:none;">
-        <span class="search-icon">${icon('search', { size: 18 })}</span>
-        <input
-          type="search"
-          class="form-input"
-          id="product-search"
-          placeholder="Search products..."
-          aria-label="Search products"
-          value="${escapeHtml(filters.q)}"
-        />
+      <div class="browse-toolbar">
+        <div class="browse-search-row">
+          <div class="search-bar">
+            <span class="search-icon">${icon('search', { size: 18 })}</span>
+            <input
+              type="search"
+              class="form-input"
+              id="product-search"
+              placeholder="Search products..."
+              aria-label="Search products"
+              enterkeyhint="search"
+              value="${escapeHtml(filters.q)}"
+            />
+          </div>
+          <button type="button" class="btn btn-secondary filter-toggle hide-desktop" id="filter-toggle"
+                  aria-haspopup="dialog" aria-controls="filter-sheet" aria-expanded="false">
+            ${icon('sliders', { size: 18 })}
+            <span>Filters</span>
+            <span class="filter-count hidden" id="filter-count"></span>
+          </button>
+        </div>
+
+        <span class="sr-only" id="category-label">Category</span>
+        <div class="pill-group" id="category-filter" role="group" aria-labelledby="category-label">
+          <button class="pill${filters.category === 'all' ? ' active' : ''}" data-category="all">All</button>
+          ${CATEGORIES.map(
+            (c) => `
+            <button class="pill${filters.category === c.id ? ' active' : ''}" data-category="${c.id}">
+              ${icon(c.icon, { size: 16 })} ${c.name}
+            </button>
+          `
+          ).join('')}
+        </div>
       </div>
 
-      <div class="filter-bar">
-        <div class="filter-group">
-          <label class="filter-label" id="category-label">Category</label>
-          <div class="pill-group" id="category-filter" role="group" aria-labelledby="category-label">
-            <button class="pill${filters.category === 'all' ? ' active' : ''}" data-category="all">All</button>
-            ${CATEGORIES.map(
-              (c) => `
-              <button class="pill${filters.category === c.id ? ' active' : ''}" data-category="${c.id}">
-                ${icon(c.icon, { size: 16 })} ${c.name}
-              </button>
-            `
-            ).join('')}
-          </div>
+      <!-- Inline on desktop; a bottom sheet on phones -->
+      <div class="sheet-backdrop" id="filter-backdrop" hidden></div>
+      <div class="filter-sheet" id="filter-sheet" role="dialog" aria-modal="false" aria-labelledby="filter-sheet-title">
+        <div class="sheet-header hide-desktop">
+          <span class="sheet-handle" aria-hidden="true"></span>
+          <h2 class="sheet-title" id="filter-sheet-title">Filters</h2>
+          <button type="button" class="btn btn-icon btn-ghost" data-close-filters aria-label="Close filters">
+            ${icon('close')}
+          </button>
         </div>
 
         <div class="filter-row">
@@ -122,6 +141,11 @@ export default async function renderProducts(params, container) {
               ).join('')}
             </select>
           </div>
+        </div>
+
+        <div class="sheet-footer hide-desktop">
+          <button type="button" class="btn btn-ghost" id="filter-reset">Reset</button>
+          <button type="button" class="btn btn-primary btn-lg" data-close-filters>Show results</button>
         </div>
       </div>
 
@@ -147,13 +171,30 @@ export default async function renderProducts(params, container) {
     history.replaceState(null, '', '#' + buildFilterPath(filters));
   }
 
+  /** True when anything narrows the list beyond "everything, newest first". */
+  function hasActiveFilters() {
+    return Boolean(filters.q) || filters.category !== 'all' || filters.condition !== 'all';
+  }
+
   function renderEmptyState() {
-    grid.innerHTML = `
+    // With filters on, the way out is to loosen them. With none, the
+    // marketplace is genuinely empty — invite the first listing instead of
+    // linking back to this same empty page.
+    grid.innerHTML = hasActiveFilters()
+      ? `
       <div class="empty-state" style="grid-column: 1 / -1;">
         <div class="empty-icon">${icon('search', { size: 32 })}</div>
-        <div class="empty-title">No products found</div>
-        <div class="empty-description">Try a different search term or browse all categories.</div>
-        <a href="#/products" class="btn btn-primary">Browse All Products</a>
+        <div class="empty-title">Nothing matches that yet</div>
+        <div class="empty-description">Try a different search term, or clear the filters to see everything for sale.</div>
+        <button type="button" class="btn btn-primary" data-clear-filters>Clear filters</button>
+      </div>
+    `
+      : `
+      <div class="empty-state" style="grid-column: 1 / -1;">
+        <div class="empty-icon">${icon('package', { size: 32 })}</div>
+        <div class="empty-title">No listings yet</div>
+        <div class="empty-description">Nobody has posted anything for sale. Be the first, it takes a minute.</div>
+        <a href="#/dashboard/new" class="btn btn-primary">${icon('plus', { size: 16 })} Sell an item</a>
       </div>
     `;
   }
@@ -264,6 +305,7 @@ export default async function renderProducts(params, container) {
   function updateFilters(patch) {
     filters = { ...filters, ...patch };
     syncURL();
+    updateFilterCount();
     loadFirstPage();
   }
 
@@ -299,6 +341,55 @@ export default async function renderProducts(params, container) {
 
   container.querySelector('#filter-sort').addEventListener('change', (e) => {
     updateFilters({ sort: e.target.value });
+  });
+
+  // ---- Mobile filter sheet ----
+  const sheet = container.querySelector('#filter-sheet');
+  const backdrop = container.querySelector('#filter-backdrop');
+  const toggle = container.querySelector('#filter-toggle');
+  const countBadge = container.querySelector('#filter-count');
+
+  function setSheetOpen(open) {
+    sheet.classList.toggle('is-open', open);
+    backdrop.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+    document.body.classList.toggle('sheet-open', open);
+    if (open) sheet.querySelector('select')?.focus();
+    else if (document.activeElement && sheet.contains(document.activeElement)) toggle.focus();
+  }
+
+  /** Badge on the Filters button: how many sheet filters are not default. */
+  function updateFilterCount() {
+    const active = (filters.condition !== 'all') + (filters.sort !== 'newest');
+    countBadge.textContent = String(active);
+    countBadge.classList.toggle('hidden', active === 0);
+  }
+
+  toggle.addEventListener('click', () => setSheetOpen(true));
+  backdrop.addEventListener('click', () => setSheetOpen(false));
+  sheet.addEventListener('click', (e) => {
+    if (e.target.closest('[data-close-filters]')) setSheetOpen(false);
+  });
+  sheet.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') setSheetOpen(false);
+  });
+
+  container.querySelector('#filter-reset').addEventListener('click', () => {
+    container.querySelector('#filter-condition').value = 'all';
+    container.querySelector('#filter-sort').value = 'newest';
+    updateFilters({ condition: 'all', sort: 'newest' });
+  });
+
+  updateFilterCount();
+
+  grid.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-clear-filters]')) return;
+    searchInput.value = '';
+    container.querySelector('#filter-condition').value = 'all';
+    container
+      .querySelectorAll('#category-filter .pill')
+      .forEach((p) => p.classList.toggle('active', p.dataset.category === 'all'));
+    updateFilters({ q: '', category: 'all', condition: 'all' });
   });
 
   loadMoreBtn.addEventListener('click', loadMore);
