@@ -21,20 +21,20 @@ const BASE = process.env.BASE_URL || 'http://localhost:4173';
 mkdirSync(SHOTS, { recursive: true });
 
 const ROUTES = [
-  { hash: '#/', name: 'home', expect: "Buy & Sell at St. Peter's Hostel" },
+  { hash: '#/', name: 'home', expect: "The classifieds of St. Peter's" },
   { hash: '#/products', name: 'products', expect: 'All Products' },
   { hash: '#/products?q=laptop', name: 'products-search', expect: 'Results for "laptop"' },
   { hash: '#/products?category=books', name: 'products-category', expect: 'Books' },
-  { hash: '#/auth/login', name: 'login', expect: 'Welcome Back' },
-  { hash: '#/auth/signup', name: 'signup', expect: 'Join the Marketplace' },
+  { hash: '#/auth/login', name: 'login', expect: 'Welcome back' },
+  { hash: '#/auth/signup', name: 'signup', expect: 'Create your account' },
   // The lookup against the placeholder Supabase host has to fail before the
   // 404 state renders, which takes several seconds.
   { hash: '#/products/does-not-exist', name: 'product-404', expect: 'Product Not Found', wait: 8000 },
   { hash: '#/nowhere', name: 'route-404', expect: 'Page Not Found' },
   // Guarded routes bounce a logged-out visitor to the login page — the auth
   // check runs before the admin check, so /admin lands on login too.
-  { hash: '#/dashboard', name: 'dashboard-guard', expect: 'Welcome Back' },
-  { hash: '#/admin', name: 'admin-guard', expect: 'Welcome Back' },
+  { hash: '#/dashboard', name: 'dashboard-guard', expect: 'Welcome back' },
+  { hash: '#/admin', name: 'admin-guard', expect: 'Welcome back' },
 ];
 
 const failures = [];
@@ -106,15 +106,31 @@ if (!page.url().includes('category=electronics')) {
 }
 console.log(`${page.url().includes('category=electronics') ? 'PASS' : 'FAIL'}  category-filter`);
 
-// Mobile layout: hamburger opens the menu
+// Mobile layout: the bottom tab bar is shown and navigates
 await page.setViewportSize({ width: 390, height: 844 });
 await page.goto(`${BASE}/#/`, { waitUntil: 'networkidle' });
-await page.click('#mobile-menu-toggle');
-await page.waitForTimeout(300);
-const menuOpen = await page.isVisible('.mobile-menu');
-if (!menuOpen) failures.push('mobile menu: did not open on hamburger click');
-await page.screenshot({ path: resolve(SHOTS, 'mobile-home.png'), fullPage: false });
-console.log(`${menuOpen ? 'PASS' : 'FAIL'}  mobile-menu`);
+const tabbarShown = await page.isVisible('.tabbar');
+await page.click('.tabbar a[href="#/products"]');
+await page.waitForTimeout(500);
+const tabbarWorks = tabbarShown && page.url().includes('#/products');
+if (!tabbarWorks) failures.push(`mobile tab bar: shown=${tabbarShown}, url=${page.url()}`);
+await page.screenshot({ path: resolve(SHOTS, 'mobile-products.png'), fullPage: false });
+console.log(`${tabbarWorks ? 'PASS' : 'FAIL'}  mobile-tabbar`);
+
+// Signup: step 1 validates before moving on to step 2
+await page.goto(`${BASE}/#/auth/signup`, { waitUntil: 'networkidle' });
+await page.click('#signup-next');
+await page.waitForTimeout(200);
+const blocked = await page.isHidden('[data-step="2"]');
+await page.fill('[name="fullName"]', 'Kwame Mensah');
+await page.fill('[name="email"]', 'kwame@test.com');
+await page.fill('[name="password"]', 'secret1');
+await page.click('#signup-next');
+await page.waitForTimeout(200);
+const advanced = await page.isVisible('[data-step="2"]');
+if (!blocked || !advanced) failures.push(`signup steps: blocked=${blocked}, advanced=${advanced}`);
+console.log(`${blocked && advanced ? 'PASS' : 'FAIL'}  signup-steps`);
+await page.setViewportSize({ width: 1280, height: 900 });
 
 // No emoji should survive anywhere in the rendered UI
 await page.setViewportSize({ width: 1280, height: 900 });
