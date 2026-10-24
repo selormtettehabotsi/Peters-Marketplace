@@ -1,4 +1,4 @@
-import { formatPrice, timeAgo, escapeHtml, getInitials } from '../lib/format.js';
+import { formatPrice, timeAgo, escapeHtml } from '../lib/format.js';
 import { getCondition } from '../lib/constants.js';
 import { icon } from './icons.js';
 
@@ -16,18 +16,8 @@ export function cardImageUrl(product) {
   );
 }
 
-/**
- * Build the seller chip — a real avatar when one exists, initials otherwise.
- * @param {Object} seller
- * @returns {string} HTML
- */
-function sellerAvatar(seller) {
-  const name = seller?.full_name || 'Unknown seller';
-  if (seller?.avatar_url) {
-    return `<img src="${escapeHtml(seller.avatar_url)}" class="avatar avatar-sm" alt="" loading="lazy" />`;
-  }
-  return `<span class="avatar avatar-sm avatar-placeholder" aria-hidden="true">${escapeHtml(getInitials(name))}</span>`;
-}
+/** Listings younger than this get a NEW marker. */
+const NEW_FOR_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Create a product card DOM element.
@@ -46,9 +36,22 @@ export function createProductCard(product, options = {}) {
   card.dataset.productId = product.id;
   card.setAttribute('role', 'link');
   card.setAttribute('tabindex', '0');
-  card.setAttribute('aria-label', `${product.title}, ${formatPrice(product.price)}`);
+  card.setAttribute(
+    'aria-label',
+    `${product.title}, ${formatPrice(product.price)}${isSold ? ', sold' : ''}`
+  );
+
+  const isNew = !isSold && Date.now() - new Date(product.created_at).getTime() < NEW_FOR_MS;
+  // "B204 · 2h" — room and age, the two things a hostel buyer scans for
+  const where = [seller.room_number, timeAgo(product.created_at).replace(/ ago$/, '')]
+    .filter(Boolean)
+    .join(' · ');
 
   card.innerHTML = `
+    <div class="product-kicker">
+      <span class="product-status">${escapeHtml(isSold ? 'Sold' : condition.name)}</span>
+      ${isNew ? '<span class="product-new">Just in</span>' : ''}
+    </div>
     <div class="card-image-wrapper">
       <img
         src="${escapeHtml(cardImageUrl(product))}"
@@ -57,24 +60,16 @@ export function createProductCard(product, options = {}) {
         loading="lazy"
         decoding="async"
       />
-      <span class="badge badge-${isSold ? 'danger' : condition.badge} product-status">
-        ${escapeHtml(isSold ? 'Sold' : condition.name)}
-      </span>
       ${
         showFavorite
           ? `<button class="btn btn-icon product-favorite" aria-label="Add to favorites" data-favorite>${icon('heart', { size: 16 })}</button>`
           : ''
       }
     </div>
-    <div class="card-body">
-      <h3 class="product-title truncate">${escapeHtml(product.title)}</h3>
-      <p class="product-price">${escapeHtml(formatPrice(product.price))}</p>
-      <div class="product-meta">
-        ${sellerAvatar(seller)}
-        <span class="truncate">${escapeHtml(seller.full_name || 'Unknown seller')}</span>
-        ${seller.room_number ? `<span class="badge badge-gray" style="font-size:10px; padding:2px 6px; border-radius:4px;">${escapeHtml(seller.room_number)}</span>` : ''}
-        <span style="margin-left:auto; font-size:11px; opacity:0.8;">${escapeHtml(timeAgo(product.created_at))}</span>
-      </div>
+    <h3 class="product-title line-clamp-2">${escapeHtml(product.title)}</h3>
+    <div class="product-meta">
+      <span class="product-price">${escapeHtml(formatPrice(product.price))}</span>
+      <span class="product-when">${escapeHtml(where)}</span>
     </div>
   `;
 

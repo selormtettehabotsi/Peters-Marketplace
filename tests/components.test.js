@@ -82,11 +82,11 @@ describe('cardImageUrl', () => {
 });
 
 describe('createProductCard', () => {
-  it('renders the title, formatted price and seller name', () => {
+  it('renders the title, formatted price and seller room', () => {
     const card = createProductCard(product);
     expect(card.querySelector('.product-title').textContent.trim()).toBe('HP Pavilion Laptop');
-    expect(card.querySelector('.product-price').textContent.trim()).toBe('GH₵ 2500.00');
-    expect(card.textContent).toContain('Kwame Mensah');
+    expect(card.querySelector('.product-price').textContent.trim()).toBe('GH₵ 2,500');
+    expect(card.querySelector('.product-when').textContent).toContain('B204');
   });
 
   it('lazy-loads the image with the blur-up class', () => {
@@ -106,9 +106,11 @@ describe('createProductCard', () => {
     expect(card.classList.contains('is-sold')).toBe(true);
   });
 
-  it('renders initials when the seller has no avatar', () => {
-    const placeholder = createProductCard(product).querySelector('.avatar-placeholder');
-    expect(placeholder.textContent.trim()).toBe('KM');
+  it('marks a listing from the last day as new, and an old one not', () => {
+    const fresh = createProductCard({ ...product, created_at: new Date().toISOString() });
+    expect(fresh.querySelector('.product-new')).not.toBeNull();
+    const old = createProductCard({ ...product, created_at: '2020-01-01T00:00:00Z' });
+    expect(old.querySelector('.product-new')).toBeNull();
   });
 
   it('escapes a malicious title instead of executing it', () => {

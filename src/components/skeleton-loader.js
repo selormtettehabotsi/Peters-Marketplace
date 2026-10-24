@@ -9,18 +9,13 @@
  */
 export function createSkeletonCard() {
   const card = document.createElement('article');
-  card.className = 'card product-card';
+  card.className = 'product-card';
   card.setAttribute('aria-hidden', 'true');
   card.innerHTML = `
+    <div class="skeleton skeleton-text" style="width: 35%;"></div>
     <div class="skeleton skeleton-image"></div>
-    <div class="card-body">
-      <div class="skeleton skeleton-title"></div>
-      <div class="skeleton skeleton-text" style="width: 40%;"></div>
-      <div class="flex items-center gap-2 mt-4">
-        <div class="skeleton skeleton-avatar"></div>
-        <div class="skeleton skeleton-text" style="width: 60%;"></div>
-      </div>
-    </div>
+    <div class="skeleton skeleton-text" style="width: 85%; margin-top: var(--space-3);"></div>
+    <div class="skeleton skeleton-text" style="width: 45%;"></div>
   `;
   return card;
 }
