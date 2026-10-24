@@ -1,7 +1,7 @@
-import { icon } from './icons.js';
-
 /**
- * Render the site footer into #footer. Static — rendered once on app start.
+ * Render the site footer into #footer. Static — rendered once on app start,
+ * so it carries no logged-in/logged-out links (the navbar and tab bar
+ * handle those).
  */
 export function renderFooter() {
   const footer = document.getElementById('footer');
@@ -11,40 +11,16 @@ export function renderFooter() {
 
   footer.className = 'footer';
   footer.innerHTML = `
-    <div class="container">
-      <div class="footer-grid">
-        <div>
-          <div class="footer-brand flex items-center gap-2">
-            ${icon('store', { size: 24 })}
-            <span>St. Peter's Marketplace</span>
-          </div>
-          <p class="text-sm">
-            Made for St. Peter's Hostel, Kotei — near KNUST, Kumasi.
-            Buy and sell anything with your hostel mates.
-          </p>
-        </div>
-
-        <div>
-          <h4 class="footer-heading">Marketplace</h4>
-          <ul>
-            <li><a href="#/products">Browse Products</a></li>
-            <li><a href="#/dashboard/new">Sell an Item</a></li>
-            <li><a href="#/dashboard">My Dashboard</a></li>
-          </ul>
-        </div>
-
-        <div>
-          <h4 class="footer-heading">Account</h4>
-          <ul>
-            <li><a href="#/auth/login">Log In</a></li>
-            <li><a href="#/auth/signup">Sign Up</a></li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="footer-bottom">
-        <p style="margin:0;">&copy; ${year} St. Peter's Marketplace · Kotei, Kumasi</p>
-      </div>
+    <div class="container footer-in">
+      <a href="#/" class="footer-brand">SP <span>Market</span></a>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="#/products">Browse</a>
+        <a href="#/dashboard/new">Sell an item</a>
+        <a href="#/dashboard">My listings</a>
+      </nav>
+      <p class="footer-note">
+        The classifieds of St. Peter's Hostel, Kotei, near KNUST &middot; Run by residents &middot; &copy; ${year}
+      </p>
     </div>
   `;
 }
