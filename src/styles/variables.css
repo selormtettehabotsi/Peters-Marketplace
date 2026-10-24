@@ -1,77 +1,84 @@
 :root {
   /* ========================================
-     PRIMARY COLORS: Authentic St. Peter's Hostel Terracotta Coral
-     Calibrated directly from the physical building facade
+     "CLASSIFIEDS" PALETTE
+     Paper, ink and one spot colour — the orange-red of the hostel's
+     wall panels. Every text pairing below is checked against WCAG AA.
      ======================================== */
-  --color-primary: #BA4024;
-  --color-primary-light: #CF5236;
+  --color-paper: #F3F0E8;        /* page */
+  --color-paper-2: #E9E4D8;      /* tinted panels: search, cards, sheets */
+  --color-paper-3: #DDD6C8;      /* hover on tinted panels */
+  --color-ink: #141414;
+  --color-ink-2: #5A554D;        /* secondary text, 6.49:1 on paper */
+  --color-spot: #D2462A;         /* large display type only (3.97:1) */
+
+  /* Primary = the spot colour darkened for buttons and small text:
+     white on it 5.47:1, it on paper 4.80:1 */
+  --color-primary: #BF3A20;
+  --color-primary-light: #D2462A;
   --color-primary-dark: #8F2B15;
-  --color-primary-hover: #A7351B;
-  --color-primary-50: #FAF2EE;
-  --color-primary-100: #F6E2DB;
-  --color-primary-200: #ECC4B7;
-  --color-primary-900: #38130B;
+  --color-primary-hover: #A33119;
+  --color-primary-50: #F8E6DF;
+  --color-primary-100: #F2D3C8;
+  --color-primary-200: #E6B09F;
+  --color-primary-900: #3A140B;
 
-  /* ========================================
-     HOSTEL ARCHITECTURAL PALETTE TOKENS
-     Physical materials from the St. Peter's Hostel building in Kotei
-     ======================================== */
-  --color-hostel-terracotta: #BA4024;
-  --color-hostel-stone: #E6EAEF;
-  --color-hostel-slate: #64748B;
-  --color-hostel-trim: #34221F;
-  --color-hostel-grille: #FFFFFF;
+  /* Building materials, kept for reference */
+  --color-hostel-terracotta: #D2462A;
+  --color-hostel-trim: #4A2A22;
 
-  /* ========================================
-     SECONDARY COLORS: Architectural Slate
-     ======================================== */
-  --color-secondary: #E2E8F0;
-  --color-secondary-light: #F1F5F9;
-  --color-secondary-dark: #64748B;
-  --color-secondary-hover: #CBD5E1;
+  --color-secondary: var(--color-paper-2);
+  --color-secondary-light: var(--color-paper);
+  --color-secondary-dark: var(--color-ink-2);
+  --color-secondary-hover: var(--color-paper-3);
 
-  /* ========================================
-     ACCENT: Muted Amber & Direct Campus WhatsApp
-     ======================================== */
-  --color-accent: #D97706;
+  --color-accent: #B45309;
   --color-accent-light: #FBBF24;
-  --color-accent-dark: #B45309;
-  --color-whatsapp: #25D366;
-  --color-whatsapp-hover: #1EBE5D;
+  --color-accent-dark: #92400E;
+  /* WhatsApp brand green is too light for white text (1.98:1); this darker
+     shade keeps the hue and passes AA (5.34:1). */
+  --color-whatsapp: #0F7A55;
+  --color-whatsapp-hover: #0B6345;
 
   /* ========================================
-     NEUTRALS: Modern Canvas Scale
+     NEUTRALS — warm, paper-toned scale
+     (same names as before, so every component follows)
      ======================================== */
   --color-white: #FFFFFF;
-  --color-gray-50: #F8FAFC;
-  --color-gray-100: #F1F5F9;
-  --color-gray-200: #E2E8F0;
-  --color-gray-300: #CBD5E1;
-  --color-gray-400: #94A3B8;
-  --color-gray-500: #64748B;
-  --color-gray-600: #475569;
-  --color-gray-700: #334155;
-  --color-gray-800: #1E293B;
-  --color-gray-900: #0F172A;
+  --color-gray-50: #F3F0E8;
+  --color-gray-100: #E9E4D8;
+  --color-gray-200: #DDD6C8;
+  --color-gray-300: #C9C1B2;
+  --color-gray-400: #9C9488;
+  --color-gray-500: #6B655C;     /* 5.06:1 on paper */
+  --color-gray-600: #57524A;
+  --color-gray-700: #3F3B35;
+  --color-gray-800: #26231F;
+  --color-gray-900: #141414;
 
   /* ========================================
-     SEMANTIC COLORS
+     SEMANTIC COLORS — darkened to pass on paper
      ======================================== */
-  --color-success: #10B981;
-  --color-success-light: #D1FAE5;
-  --color-warning: #F59E0B;
-  --color-warning-light: #FEF3C7;
-  --color-danger: #EF4444;
-  --color-danger-light: #FEE2E2;
-  --color-info: #3B82F6;
-  --color-info-light: #DBEAFE;
+  --color-success: #047857;      /* 4.82:1 on paper */
+  --color-success-light: #D7EBDD;
+  --color-warning: #B45309;
+  --color-warning-light: #F6E3C4;
+  --color-danger: #B91C1C;
+  --color-danger-light: #F6DCD6;
+  --color-info: #1D4ED8;
+  --color-info-light: #DCE4F5;
+
+  /* Form control edge — 3.5:1 against paper (WCAG 1.4.11) */
+  --color-border-input: #857E72;
 
   /* ========================================
      TYPOGRAPHY
+     Condensed Archivo for headlines, Plex Sans for reading,
+     Plex Mono for prices, rooms and times.
      ======================================== */
-  --font-heading: 'Outfit', sans-serif;
-  --font-body: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-heading: 'Archivo', 'Arial Narrow', sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --heading-stretch: 70%;
 
   --font-xs: 0.75rem;
   --font-sm: 0.875rem;
@@ -90,7 +97,7 @@
 
   --leading-tight: 1.25;
   --leading-normal: 1.5;
-  --leading-relaxed: 1.75;
+  --leading-relaxed: 1.65;
 
   /* ========================================
      SPACING
@@ -108,28 +115,27 @@
   --space-20: 5rem;
 
   /* ========================================
-     BORDER RADIUS
+     BORDER RADIUS — "a little round"
      ======================================== */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.5rem;
+  --radius-sm: 0.375rem;   /* 6px: stamps, badges */
+  --radius-md: 0.5rem;     /* 8px */
+  --radius-lg: 0.75rem;    /* 12px: buttons, list photos, inputs */
+  --radius-xl: 1rem;       /* 16px */
+  --radius-2xl: 1.25rem;   /* 20px: panels, sheets, lead photo */
   --radius-full: 9999px;
 
   /* ========================================
-     SHADOWS & ELEVATION
-     Modern atmospheric layered shadows
+     SHADOWS — used sparingly; tint does the separating
      ======================================== */
-  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
-  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
-  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
-  --shadow-card-hover: 0 10px 22px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(200, 78, 51, 0.08);
-  --shadow-coral: 0 8px 20px -4px rgba(200, 78, 51, 0.25);
-  --shadow-coral-sm: 0 3px 8px rgba(200, 78, 51, 0.16);
-  --shadow-glass: 0 8px 32px 0 rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 1px 2px 0 rgba(20, 20, 20, 0.05);
+  --shadow-md: 0 4px 10px -2px rgba(20, 20, 20, 0.08);
+  --shadow-lg: 0 12px 24px -6px rgba(20, 20, 20, 0.12);
+  --shadow-xl: 0 24px 48px -12px rgba(20, 20, 20, 0.22);
+  --shadow-card: none;
+  --shadow-card-hover: none;
+  --shadow-coral: none;
+  --shadow-coral-sm: none;
+  --shadow-glass: none;
   --blur-glass: blur(16px);
 
   /* ========================================
@@ -152,18 +158,18 @@
   /* ========================================
      LAYOUT
      ======================================== */
-  --container-max: 1200px;
-  --container-padding: var(--space-4);
+  --container-max: 1240px;
+  --container-padding: 1.125rem;
   --navbar-height: 64px;
 
   /* Product grid */
-  --grid-gap: var(--space-4);
-  --card-min-width: 260px;
+  --grid-gap: var(--space-6);
+  --card-min-width: 240px;
 }
 
 /* Responsive overrides */
 @media (min-width: 768px) {
   :root {
-    --container-padding: var(--space-8);
+    --container-padding: 2.25rem;
   }
 }
