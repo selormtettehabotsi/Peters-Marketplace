@@ -8,7 +8,8 @@
 .navbar {
   position: sticky;
   top: 0;
-  height: var(--navbar-height);
+  height: calc(var(--navbar-height) + var(--safe-top));
+  padding-top: var(--safe-top);
   background: rgba(243, 240, 232, 0.94);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -187,8 +188,11 @@
     z-index: var(--z-navbar);
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    height: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px));
-    padding: 0 6px env(safe-area-inset-bottom, 0px);
+    /* The bar's own 64px sits above the gesture bar / home indicator,
+       which gets a strip of the same colour underneath. */
+    height: calc(var(--tabbar-height) + var(--safe-bottom));
+    padding: 0 max(6px, var(--safe-right)) var(--safe-bottom) max(6px, var(--safe-left));
+    box-shadow: 0 -6px 20px rgba(20, 20, 20, 0.12);
     background-color: var(--color-ink);
     border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
   }
@@ -462,12 +466,15 @@
   }
 }
 
-.lead-story img {
+.lead-photo {
+  border-radius: var(--radius-2xl);
+}
+
+.lead-photo img {
+  display: block;
   width: 100%;
   aspect-ratio: 4 / 3;
   object-fit: cover;
-  border-radius: var(--radius-2xl);
-  background-color: var(--color-paper-2);
 }
 
 .lead-kicker {
@@ -982,7 +989,7 @@
 @media (max-width: 768px) {
   .browse-toolbar {
     position: sticky;
-    top: var(--navbar-height);
+    top: calc(var(--navbar-height) + var(--safe-top));
     z-index: var(--z-sticky);
     margin: 0 calc(-1 * var(--container-padding)) var(--space-4);
     padding: var(--space-3) var(--container-padding) var(--space-1);
@@ -1292,19 +1299,27 @@
   overflow: hidden;
 }
 
+/* Square on desktop, 4:5 on phones (most phone photos are portrait).
+   The whole photo always shows; any spare space is a blurred fill. */
 .gallery-main {
   position: relative;
-  aspect-ratio: 4 / 3;
-  background-color: var(--color-paper-2);
+  aspect-ratio: 1 / 1;
+  max-height: min(78vh, 720px);
+  width: 100%;
   border-radius: var(--radius-2xl);
-  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .gallery-main {
+    aspect-ratio: 4 / 5;
+    max-height: 70vh;
+  }
 }
 
 .gallery-image {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background-color: var(--color-paper-2);
   cursor: zoom-in;
 }
 

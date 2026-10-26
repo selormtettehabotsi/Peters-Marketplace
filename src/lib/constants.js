@@ -19,13 +19,24 @@ export const CONDITIONS = [
 // Upload limits
 export const UPLOAD_LIMITS = {
   MAX_IMAGES: 5,
-  MAX_IMAGE_SIZE_MB: 5,
+  // Checked on the original photo. Photos are shrunk on the phone before
+  // upload, so this only guards against absurd files, not data usage.
+  MAX_IMAGE_SIZE_MB: 20,
   MAX_VIDEO_SIZE_MB: 10,
   MAX_VIDEO_DURATION_SECONDS: 30,
   ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
   ALLOWED_VIDEO_TYPES: ['video/mp4'],
-  THUMBNAIL_WIDTH: 300,
-  THUMBNAIL_QUALITY: 0.7,
+  // Product page photo: longest side, WebP quality
+  FULL_LONG_EDGE: 1600,
+  FULL_QUALITY: 0.8,
+  // Card thumbnail: shortest side. 600px keeps 2-up phone cards sharp on
+  // high-density screens (the old 300px-wide thumbs looked soft).
+  THUMB_SHORT_EDGE: 600,
+  // ...and longest side, so a panorama's thumbnail isn't the full photo
+  THUMB_LONG_EDGE: 1000,
+  THUMB_QUALITY: 0.75,
+  // Photos uploaded at the same time
+  UPLOAD_CONCURRENCY: 3,
 };
 
 // Currency

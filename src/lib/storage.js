@@ -1,5 +1,6 @@
 import { supabase } from '../supabase.js';
-import { compressImage, generateThumbnail } from './image-utils.js';
+import { prepareImage } from './image-utils.js';
+import { UPLOAD_LIMITS } from './constants.js';
 
 const IMAGE_BUCKET = 'product-images';
 const VIDEO_BUCKET = 'product-videos';
@@ -22,8 +23,7 @@ export function extractPathFromUrl(url, bucket) {
 }
 
 /**
- * Upload a product image to Supabase Storage.
- * Compresses the image and generates a thumbnail.
+ * Upload a product image and its thumbnail to Supabase Storage.
  *
  * Filenames carry a random token rather than the image's position in the
  * list. When a seller removes one photo and adds another, the new upload
@@ -32,33 +32,68 @@ export function extractPathFromUrl(url, bucket) {
  * @param {File} file - Image file
  * @param {string} userId - Seller's user ID
  * @param {string} productId - Product ID
+ * @param {Promise|Object} [prepared] - result (or pending result) of
+ *   prepareImage(file), started when the photo was picked; prepared here
+ *   if absent
  * @returns {Promise<{imageUrl: string, thumbnailUrl: string}>}
  */
-export async function uploadProductImage(file, userId, productId) {
-  const compressed = await compressImage(file);
-  const thumbnail = await generateThumbnail(file);
+export async function uploadProductImage(file, userId, productId, prepared) {
+  const { full, thumb } = (await prepared) || (await prepareImage(file));
 
   const token = crypto.randomUUID().slice(0, 8);
   const imagePath = `${userId}/${productId}/image_${token}.webp`;
   const thumbPath = `${userId}/${productId}/thumb_${token}.webp`;
+  const bucket = supabase.storage.from(IMAGE_BUCKET);
 
-  const { error: imgErr } = await supabase.storage
-    .from(IMAGE_BUCKET)
-    .upload(imagePath, compressed, { contentType: 'image/webp', upsert: true });
-  if (imgErr) throw imgErr;
-
-  const { error: thumbErr } = await supabase.storage
-    .from(IMAGE_BUCKET)
-    .upload(thumbPath, thumbnail, { contentType: 'image/webp', upsert: true });
-  if (thumbErr) throw thumbErr;
-
-  const { data: imgData } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(imagePath);
-  const { data: thumbData } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(thumbPath);
+  // Photo and thumbnail go up together rather than one after the other.
+  const results = await Promise.all([
+    bucket.upload(imagePath, full, { contentType: 'image/webp', upsert: true }),
+    bucket.upload(thumbPath, thumb, { contentType: 'image/webp', upsert: true }),
+  ]);
+  const failed = results.find((r) => r.error);
+  if (failed) throw failed.error;
 
   return {
-    imageUrl: imgData.publicUrl,
-    thumbnailUrl: thumbData.publicUrl,
+    imageUrl: bucket.getPublicUrl(imagePath).data.publicUrl,
+    thumbnailUrl: bucket.getPublicUrl(thumbPath).data.publicUrl,
   };
+}
+
+/**
+ * Run async jobs with at most `limit` in flight, keeping results in order.
+ * @template T
+ * @param {Array<() => Promise<T>>} jobs
+ * @param {number} limit
+ * @returns {Promise<T[]>}
+ */
+export async function runLimited(jobs, limit) {
+  const results = new Array(jobs.length);
+  let next = 0;
+  async function worker() {
+    while (next < jobs.length) {
+      const i = next++;
+      results[i] = await jobs[i]();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, jobs.length) }, worker));
+  return results;
+}
+
+/**
+ * Upload every new photo of a listing, several at a time.
+ * @param {Array<{file: File, prepared?: Promise}>} images - new images only
+ * @param {string} userId
+ * @param {string} productId
+ * @param {Function} [onEach] - called after each photo finishes
+ * @returns {Promise<Array<{imageUrl: string, thumbnailUrl: string}>>} in input order
+ */
+export function uploadProductImages(images, userId, productId, onEach = () => {}) {
+  const jobs = images.map((img) => async () => {
+    const result = await uploadProductImage(img.file, userId, productId, img.prepared);
+    onEach();
+    return result;
+  });
+  return runLimited(jobs, UPLOAD_LIMITS.UPLOAD_CONCURRENCY);
 }
 
 /**

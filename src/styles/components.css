@@ -170,12 +170,48 @@
   padding: var(--space-5);
 }
 
+/* 4:5 suits what sellers actually post: upright phone photos (3:4) and
+   flyers (4:5) fit almost exactly; other shapes go through photo-fit.js. */
+.card-image,
+.product-card .skeleton-image {
+  aspect-ratio: 4 / 5;
+}
+
 .card-image {
   width: 100%;
-  aspect-ratio: 1 / 1;
   object-fit: cover;
   background-color: var(--color-paper-2);
   transition: opacity var(--transition-fast);
+}
+
+/* ---- PHOTO FRAME (see src/lib/photo-fit.js) ----
+   A photo close to the frame's shape fills it (cover). One far off is shown
+   whole (contain), over a soft blurred copy of itself instead of blank bars. */
+.photo-frame {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background-color: var(--color-paper-2);
+}
+
+.photo-frame::before {
+  content: '';
+  position: absolute;
+  inset: -12%;
+  z-index: -1;
+  background: var(--photo) center / cover no-repeat;
+  filter: blur(24px) saturate(1.1);
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.photo-frame.is-contain::before {
+  opacity: 0.55;
+}
+
+.photo-frame.is-contain img {
+  object-fit: contain;
+  background-color: transparent;
 }
 
 /* ---- PRODUCT CARD (an open classified: no box) ---- */
