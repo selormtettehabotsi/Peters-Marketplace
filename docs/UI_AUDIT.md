@@ -131,6 +131,25 @@ C was chosen, with slightly rounded corners, and applied to the whole app. Every
 | Auth | The hostel photo sits beside the form on desktop and above it as a banner on phones. |
 | Other | The footer no longer shows Log In / Sign Up to people who are already logged in. The home page's "database not set up" message now works; it used to check the wrong property, so it never appeared. |
 
+## Round 4 — installed app, uploads and photo display
+
+| Issue | Cause | Fix |
+|---|---|---|
+| The installed app opened on login or signup | iOS "Add to Home Screen" saves the page you were on, and Android resumes the last screen. Nothing sent people back to the listings. | A fresh launch of the installed app opens **All Products** when it starts on home, login, signup, or a members-only page while logged out (`src/lib/launch.js`). Shared product links still open as normal. The manifest's start address is now `/#/products`. |
+| The tab bar looked "sunk in" | The page didn't request `viewport-fit=cover`, so the phone's safe-area sizes were reported as 0 and the bar sat under the home indicator or gesture bar. | Added `viewport-fit=cover`. The tab bar and top bar are now padded by the real safe areas. |
+| Uploads were slow | Photos and thumbnails uploaded one after another; every photo was decoded twice at full size; work only began at Publish. | Each photo is prepared in the background when picked (queued, one decode each). Uploads run in parallel (3 photos at a time, each with its thumbnail), alongside the video. Measured on a simulated mid-range phone with ~1 Mbps upload: **12.3 s → 5.5 s**. The size limit was raised from 5 MB to 20 MB, because photos are shrunk on the phone before upload. |
+| Photos didn't fit | Square cards cropped tall photos and flyers (the real "Café delicioso" flyer lost its address and phone number). The 4:3 top-listing frame cropped portrait photos. Product pages left blank bars. Thumbnails were 300px wide, which looks soft on phones. | Cards are now 4:5, the shape of upright phone photos and flyers. Smart framing (`src/lib/photo-fit.js`): a photo close to its frame's shape fills it; one far off is shown whole over a blurred copy of itself. Product pages always show the whole photo. Plain, even-coloured borders are trimmed at upload. Thumbnails keep a short side of up to 600px (long side capped at 1000px). Older low-resolution thumbnails are swapped for the full photo when a screen needs it. |
+
+These were tested with 11 deliberately varied photos, each put through the real upload code:
+- portrait, landscape and square phone photos;
+- a tall screenshot and a 10:3 panorama;
+- a 320×240 low-resolution photo;
+- a photo stored sideways with a rotation setting (it displays upright);
+- a cut-out PNG;
+- a very dark photo;
+- a small item off-centre on a white background;
+- a 4:5 flyer with text at both edges.
+
 ## Sources
 
 - Baymard Institute, *Product List UX* research: [baymard.com/research/ecommerce-product-lists](https://baymard.com/research/ecommerce-product-lists) and [Product List UX 2025 pitfalls](https://baymard.com/research-articles/current-state-product-list-and-filtering). In 2025, 78% of mobile sites were rated poor or mediocre on product lists. The core tension Baymard describes is card information density versus screen space.
