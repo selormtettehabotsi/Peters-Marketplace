@@ -2,7 +2,7 @@ import { CATEGORIES, CONDITIONS } from '../lib/constants.js';
 import { getUser, isBanned } from '../lib/auth.js';
 import { createProduct, updateProduct, fetchProduct } from '../lib/api.js';
 import {
-  uploadProductImage,
+  uploadProductImages,
   uploadProductVideo,
   deleteSingleImage,
   deleteSingleVideo,
@@ -187,42 +187,52 @@ async function renderForm({ mode, product }, container) {
     try {
       const productId = isEdit ? product.id : crypto.randomUUID();
 
-      // ---- 1. Upload images ----
-      // Images already in storage keep their URLs; only new files upload.
+      // ---- 1 + 2. Upload photos and video, all at the same time ----
+      // Photos already in storage keep their URLs; only new files upload.
+      // Most photos were already shrunk in the background when picked.
+      const newImages = images.filter((img) => img.file);
+      const video = videoWidget.getVideo();
+      const uploadingVideo = Boolean(video?.file);
+      const totalFiles = newImages.length + (uploadingVideo ? 1 : 0);
+      let doneFiles = 0;
+
+      const reportProgress = () => {
+        const pct = totalFiles ? Math.round((doneFiles / totalFiles) * 90) : 90;
+        const label = totalFiles
+          ? `Uploading ${Math.min(doneFiles + 1, totalFiles)} of ${totalFiles}…`
+          : 'Saving…';
+        setProgress(pct, label);
+      };
+      const fileDone = () => {
+        doneFiles += 1;
+        reportProgress();
+      };
+      reportProgress();
+
+      const [uploaded, videoUrl] = await Promise.all([
+        uploadProductImages(newImages, user.id, productId, fileDone),
+        uploadingVideo
+          ? uploadProductVideo(video.file, user.id, productId).then((url) => {
+              fileDone();
+              return url;
+            })
+          : Promise.resolve(video?.url || null),
+      ]);
+      const videoDuration = video ? video.duration || null : null;
+
+      // Rebuild the list in the seller's chosen order, first photo = cover.
       const imageUrls = [];
       const thumbnailUrls = [];
-      const total = images.length;
-
-      for (let i = 0; i < total; i++) {
-        const img = images[i];
-        setProgress(Math.round((i / (total + 1)) * 100), `Uploading image ${i + 1} of ${total}…`);
-
+      let nextNew = 0;
+      for (const img of images) {
         if (img.file) {
-          const { imageUrl, thumbnailUrl } = await uploadProductImage(
-            img.file,
-            user.id,
-            productId
-          );
+          const { imageUrl, thumbnailUrl } = uploaded[nextNew++];
           imageUrls.push(imageUrl);
           thumbnailUrls.push(thumbnailUrl);
         } else {
           imageUrls.push(img.url);
           thumbnailUrls.push(img.thumbnailUrl || img.url);
         }
-      }
-
-      // ---- 2. Upload video ----
-      setProgress(85, 'Finishing up…');
-      const video = videoWidget.getVideo();
-      let videoUrl = null;
-      let videoDuration = null;
-
-      if (video?.file) {
-        videoUrl = await uploadProductVideo(video.file, user.id, productId);
-        videoDuration = video.duration;
-      } else if (video?.url) {
-        videoUrl = video.url;
-        videoDuration = video.duration || null;
       }
 
       // ---- 3. Write the row ----
@@ -248,13 +258,12 @@ async function renderForm({ mode, product }, container) {
 
       // ---- 4. Clean up media the user removed while editing ----
       // Only after the row is saved, so a failed save leaves the files intact.
-      for (const gone of imageWidget.getRemoved()) {
-        await deleteSingleImage(gone.url, gone.thumbnailUrl);
-      }
-
-      if (videoWidget.wasExistingRemoved() && product?.video_url) {
-        await deleteSingleVideo(product.video_url);
-      }
+      await Promise.all([
+        ...imageWidget.getRemoved().map((gone) => deleteSingleImage(gone.url, gone.thumbnailUrl)),
+        videoWidget.wasExistingRemoved() && product?.video_url
+          ? deleteSingleVideo(product.video_url)
+          : null,
+      ]);
 
       setProgress(100, 'Done');
       showToast(isEdit ? 'Listing updated' : 'Listing published', 'success');

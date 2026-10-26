@@ -177,9 +177,9 @@ describe('validateImageFile', () => {
   });
 
   it('rejects a file over the size limit', () => {
-    const result = validateImageFile(fakeFile('image/jpeg', 6 * 1024 * 1024));
+    const result = validateImageFile(fakeFile('image/jpeg', 21 * 1024 * 1024));
     expect(result.valid).toBe(false);
-    expect(result.error).toMatch(/under 5MB/);
+    expect(result.error).toMatch(/under 20MB/);
   });
 
   it('rejects a disallowed type', () => {
@@ -189,6 +189,6 @@ describe('validateImageFile', () => {
   });
 
   it('accepts a file exactly at the size limit', () => {
-    expect(validateImageFile(fakeFile('image/png', 5 * 1024 * 1024)).valid).toBe(true);
+    expect(validateImageFile(fakeFile('image/png', 20 * 1024 * 1024)).valid).toBe(true);
   });
 });

@@ -1,7 +1,7 @@
 import { UPLOAD_LIMITS } from '../lib/constants.js';
 import { validateImageFile } from '../lib/validation.js';
 import { validateVideo } from '../lib/video-utils.js';
-import { readAsDataURL } from '../lib/image-utils.js';
+import { prepareImage } from '../lib/image-utils.js';
 import { formatFileSize, escapeHtml } from '../lib/format.js';
 import { icon } from './icons.js';
 import { showToast } from './toast.js';
@@ -19,7 +19,7 @@ import { showToast } from './toast.js';
  * @returns {Object} widget API
  */
 export function createUploadWidget(mount, options = {}) {
-  /** @type {Array<{file?: File, preview: string, url?: string, thumbnailUrl?: string}>} */
+  /** @type {Array<{file?: File, preview: string, prepared?: Promise, url?: string, thumbnailUrl?: string}>} */
   const images = (options.existing || []).map((img) => ({
     url: img.url,
     thumbnailUrl: img.thumbnailUrl,
@@ -28,6 +28,9 @@ export function createUploadWidget(mount, options = {}) {
 
   /** Images that were present at load but have since been removed. */
   const removed = [];
+
+  /** Tail of the background photo-preparation queue. */
+  let prepQueue = Promise.resolve();
 
   mount.innerHTML = `
     <div class="upload-dropzone" id="image-dropzone" tabindex="0" role="button"
@@ -83,12 +86,15 @@ export function createUploadWidget(mount, options = {}) {
         showToast(`${file.name}: ${error}`, 'error');
         continue;
       }
-      try {
-        const preview = await readAsDataURL(file);
-        images.push({ file, preview });
-      } catch {
-        showToast(`Could not read ${file.name}`, 'error');
-      }
+      // An object URL previews instantly; a data URL of a 5MB photo did not.
+      const preview = URL.createObjectURL(file);
+      // Start shrinking the photo now, while the seller fills in the form,
+      // so Publish only has to upload. A failure here is retried at upload.
+      // Queued one at a time: several full-size decodes at once can run a
+      // budget phone out of memory.
+      const prepared = prepQueue.then(() => prepareImage(file)).catch(() => null);
+      prepQueue = prepared;
+      images.push({ file, preview, prepared });
     }
 
     if (files.length > room) {
@@ -136,6 +142,7 @@ export function createUploadWidget(mount, options = {}) {
     const [gone] = images.splice(index, 1);
     // Remember stored images so the caller can clean up the bucket on save.
     if (gone?.url) removed.push(gone);
+    if (gone?.file) URL.revokeObjectURL(gone.preview);
     renderPreviews();
   });
 
