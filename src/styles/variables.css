@@ -161,6 +161,12 @@
   --container-max: 1240px;
   --container-padding: 1.125rem;
   --navbar-height: 64px;
+  /* Phone safe areas (status bar, notch, gesture bar). Non-zero only with
+     viewport-fit=cover, i.e. mainly in the installed app. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 
   /* Product grid */
   --grid-gap: var(--space-6);
