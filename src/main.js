@@ -1,13 +1,14 @@
 // Import styles
 import './styles/index.css';
 
-import { addRoute, setNotFound, initRouter, onNavigate } from './router.js';
-import { initAuth, onAuthChange } from './lib/auth.js';
+import { addRoute, setNotFound, initRouter, onNavigate, getCurrentPath } from './router.js';
+import { initAuth, onAuthChange, isLoggedIn } from './lib/auth.js';
 import { renderNavbar } from './components/navbar.js';
 import { renderFooter } from './components/footer.js';
 import { icon } from './components/icons.js';
 import { isConfigured } from './supabase.js';
 import { initPasswordToggles } from './lib/form-utils.js';
+import { launchRedirect, isStandalone, consumeFreshLaunch } from './lib/launch.js';
 
 // Pages
 import renderHome from './pages/home.js';
@@ -174,6 +175,16 @@ async function initApp() {
 
   registerRoutes();
   initPasswordToggles();
+
+  // Installed app: open on the listings, never on a login/signup form.
+  // replaceState rather than navigate, so Back doesn't return to signup.
+  const target = launchRedirect(getCurrentPath(), {
+    standalone: isStandalone(),
+    freshLaunch: consumeFreshLaunch(),
+    loggedIn: isLoggedIn(),
+  });
+  if (target) history.replaceState(null, '', '#' + target);
+
   initRouter();
   watchConnection();
   setupInstallPrompt();

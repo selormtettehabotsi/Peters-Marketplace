@@ -13,8 +13,10 @@ export default defineConfig({
         theme_color: '#F3F0E8',
         background_color: '#F3F0E8',
         display: 'standalone',
+        id: '/',
         scope: '/',
-        start_url: '/',
+        // The app shows the listings on launch (see src/lib/launch.js)
+        start_url: '/#/products',
         icons: [
           {
             src: '/icons/icon-192x192.png',
