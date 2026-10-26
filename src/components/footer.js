@@ -19,7 +19,7 @@ export function renderFooter() {
         <a href="#/dashboard">My listings</a>
       </nav>
       <p class="footer-note">
-        The classifieds of St. Peter's Hostel, Kotei, near KNUST &middot; Run by residents &middot; &copy; ${year}
+        The classifieds of St. Peter's Hostel, Kotei, near KNUST &middot; Run by <a href="https://SKETech.dev" class="footer-links">SKETech </a> &middot; &copy; ${year}
       </p>
     </div>
   `;
