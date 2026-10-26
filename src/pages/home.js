@@ -6,6 +6,7 @@ import { icon } from '../components/icons.js';
 import { isLoggedIn } from '../lib/auth.js';
 import { formatPrice, timeAgo, escapeHtml } from '../lib/format.js';
 import { navigate, watchNavigation } from '../router.js';
+import { fitPhoto } from '../lib/photo-fit.js';
 
 const SELL_STEPS = [
   { title: 'Post it', text: 'One photo and a price in cedis. Your room number goes on for you.' },
@@ -26,8 +27,10 @@ function leadStory(product) {
   const condition = getCondition(product.condition);
   return `
     <article class="lead-story" data-href="#/products/${product.id}">
-      <img src="${escapeHtml(product.image_urls?.[0] || cardImageUrl(product))}"
-           alt="${escapeHtml(product.title)}" />
+      <div class="lead-photo photo-frame">
+        <img src="${escapeHtml(product.image_urls?.[0] || cardImageUrl(product))}"
+             alt="${escapeHtml(product.title)}" />
+      </div>
       <div>
         <div class="lead-kicker">
           <span class="lead-new">Just listed</span>
@@ -215,6 +218,7 @@ export default async function renderHome(params, container) {
 
   const [lead, ...rest] = products;
   leadSection.innerHTML = leadStory(lead);
+  fitPhoto(leadSection.querySelector('.lead-photo img'), { frameRatio: 4 / 3 });
 
   if (rest.length === 0) {
     featured.remove();

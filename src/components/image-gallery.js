@@ -1,5 +1,6 @@
 import { escapeHtml } from '../lib/format.js';
 import { icon } from './icons.js';
+import { fitPhoto } from '../lib/photo-fit.js';
 
 const SWIPE_THRESHOLD_PX = 40;
 
@@ -17,7 +18,7 @@ export function createImageGallery(imageUrls, altText, thumbUrls = []) {
   const gallery = document.createElement('div');
   gallery.className = 'gallery';
   gallery.innerHTML = `
-    <div class="gallery-main">
+    <div class="gallery-main photo-frame is-contain">
       <img
         src="${escapeHtml(images[0])}"
         alt="${escapeHtml(altText)} — image 1 of ${images.length}"
@@ -61,6 +62,7 @@ export function createImageGallery(imageUrls, altText, thumbUrls = []) {
   `;
 
   const main = gallery.querySelector('#gallery-active');
+  fitPhoto(main, { alwaysContain: true });
   const counter = gallery.querySelector('.gallery-counter');
   const thumbs = gallery.querySelectorAll('.gallery-thumb');
 

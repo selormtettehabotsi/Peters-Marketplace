@@ -1,17 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFiltersFromQuery, buildFilterPath, pageTitleFor } from '../src/pages/products.js';
 import { filterAdminListings } from '../src/pages/admin.js';
-import { scaleDimensions } from '../src/lib/image-utils.js';
+import { scaleDimensions, fitLongEdge, fitShortEdge, findContentBox } from '../src/lib/image-utils.js';
 import { checkVideoFile } from '../src/lib/video-utils.js';
-import { extractPathFromUrl, uploadProductImage } from '../src/lib/storage.js';
+import { extractPathFromUrl, uploadProductImage, runLimited } from '../src/lib/storage.js';
+import { launchRedirect } from '../src/lib/launch.js';
+import { shouldContain } from '../src/lib/photo-fit.js';
 import { supabase } from '../src/supabase.js';
 
 // Canvas/WebP encoding does not exist in jsdom — the storage tests below
 // care about upload paths, not pixels.
 vi.mock('../src/lib/image-utils.js', async (importOriginal) => ({
   ...(await importOriginal()),
-  compressImage: async (file) => file,
-  generateThumbnail: async (file) => file,
+  prepareImage: async (file) => ({ full: file, thumb: file, width: 1, height: 1 }),
 }));
 import { friendlyAuthError } from '../src/lib/auth.js';
 import {
@@ -329,5 +330,132 @@ describe('password visibility toggle', () => {
   it('does not add a toggle to other input types', () => {
     document.body.innerHTML = field({ name: 'email', label: 'Email', type: 'email' });
     expect(document.querySelector('[data-toggle-password]')).toBeNull();
+  });
+});
+
+describe('fitLongEdge / fitShortEdge', () => {
+  it('caps the long side of a portrait phone photo', () => {
+    expect(fitLongEdge(3024, 4032, 1600)).toEqual({ width: 1200, height: 1600 });
+  });
+
+  it('caps the long side of a landscape photo', () => {
+    expect(fitLongEdge(4032, 3024, 1600)).toEqual({ width: 1600, height: 1200 });
+  });
+
+  it('never upscales', () => {
+    expect(fitLongEdge(800, 600, 1600)).toEqual({ width: 800, height: 600 });
+    expect(fitShortEdge(400, 300, 600)).toEqual({ width: 400, height: 300 });
+  });
+
+  it('sizes thumbnails by the short side so square-ish crops stay sharp', () => {
+    expect(fitShortEdge(1200, 1600, 600)).toEqual({ width: 600, height: 800 });
+    expect(fitShortEdge(1600, 1200, 600)).toEqual({ width: 800, height: 600 });
+  });
+});
+
+describe('runLimited', () => {
+  it('keeps results in input order and never exceeds the limit', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const jobs = [30, 5, 20, 1, 10].map((ms, i) => async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, ms));
+      inFlight -= 1;
+      return i;
+    });
+    expect(await runLimited(jobs, 3)).toEqual([0, 1, 2, 3, 4]);
+    expect(peak).toBe(3);
+  });
+
+  it('handles an empty list', async () => {
+    expect(await runLimited([], 3)).toEqual([]);
+  });
+});
+
+describe('launchRedirect (installed app start screen)', () => {
+  const app = { standalone: true, freshLaunch: true, loggedIn: false };
+
+  it('opens the listings instead of signup or login', () => {
+    expect(launchRedirect('/auth/signup', app)).toBe('/products');
+    expect(launchRedirect('/auth/login', app)).toBe('/products');
+  });
+
+  it('opens the listings instead of the bare home route', () => {
+    expect(launchRedirect('/', app)).toBe('/products');
+  });
+
+  it('sends a logged-out launch away from members-only screens', () => {
+    expect(launchRedirect('/dashboard', app)).toBe('/products');
+    expect(launchRedirect('/admin', app)).toBe('/products');
+  });
+
+  it('keeps a logged-in seller on their dashboard', () => {
+    expect(launchRedirect('/dashboard', { ...app, loggedIn: true })).toBeNull();
+  });
+
+  it('keeps a shared link to one product', () => {
+    expect(launchRedirect('/products/abc', app)).toBeNull();
+  });
+
+  it('does nothing in a normal browser tab or after the first screen', () => {
+    expect(launchRedirect('/auth/signup', { ...app, standalone: false })).toBeNull();
+    expect(launchRedirect('/auth/signup', { ...app, freshLaunch: false })).toBeNull();
+  });
+});
+
+describe('shouldContain (smart photo framing)', () => {
+  it('fills a square card with an ordinary 4:3 or 3:4 phone photo', () => {
+    expect(shouldContain(4 / 3, 1)).toBe(false);
+    expect(shouldContain(3 / 4, 1)).toBe(false);
+  });
+
+  it('shows a tall screenshot or a wide panorama whole', () => {
+    expect(shouldContain(9 / 19.5, 1)).toBe(true);
+    expect(shouldContain(3, 1)).toBe(true);
+  });
+
+  it('shows a portrait photo whole in the 4:3 lead frame', () => {
+    expect(shouldContain(3 / 4, 4 / 3)).toBe(true);
+  });
+});
+
+describe('findContentBox (trimming plain borders)', () => {
+  /** Build RGBA pixels: a background colour with an optional solid block. */
+  function pixels(w, h, bg, block) {
+    const data = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const inBlock = block && x >= block.x && x < block.x + block.w && y >= block.y && y < block.y + block.h;
+        data.set(inBlock ? block.color : bg, (y * w + x) * 4);
+      }
+    }
+    return data;
+  }
+  const WHITE = [255, 255, 255, 255];
+  const DARK = [40, 30, 20, 255];
+
+  it('finds a small item in the corner of a white photo', () => {
+    const data = pixels(100, 60, WHITE, { x: 5, y: 5, w: 20, h: 20, color: DARK });
+    expect(findContentBox(data, 100, 60)).toEqual({ x: 5, y: 5, width: 20, height: 20 });
+  });
+
+  it('trims a transparent background around a cut-out', () => {
+    const data = pixels(50, 50, [0, 0, 0, 0], { x: 10, y: 15, w: 30, h: 20, color: DARK });
+    expect(findContentBox(data, 50, 50)).toEqual({ x: 10, y: 15, width: 30, height: 20 });
+  });
+
+  it('leaves a photo alone when the corners differ (a real background)', () => {
+    const data = pixels(40, 40, WHITE, { x: 0, y: 0, w: 10, h: 10, color: DARK });
+    expect(findContentBox(data, 40, 40)).toBeNull();
+  });
+
+  it('leaves a photo alone when the margin is thin', () => {
+    const data = pixels(40, 40, WHITE, { x: 1, y: 1, w: 38, h: 38, color: DARK });
+    expect(findContentBox(data, 40, 40)).toBeNull();
+  });
+
+  it('leaves a single-colour photo alone', () => {
+    expect(findContentBox(pixels(20, 20, WHITE), 20, 20)).toBeNull();
   });
 });

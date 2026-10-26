@@ -1,6 +1,7 @@
 import { formatPrice, timeAgo, escapeHtml } from '../lib/format.js';
 import { getCondition } from '../lib/constants.js';
 import { icon } from './icons.js';
+import { fitPhoto } from '../lib/photo-fit.js';
 
 /**
  * Pick the image to show in a card: prefer the small thumbnail, fall back
@@ -18,6 +19,24 @@ export function cardImageUrl(product) {
 
 /** Listings younger than this get a NEW marker. */
 const NEW_FOR_MS = 24 * 60 * 60 * 1000;
+
+/** Card photo frame, width / height (matches .card-image in components.css). */
+const CARD_RATIO = 4 / 5;
+
+/**
+ * Listings uploaded before thumbnails were enlarged have 300px-wide thumbs,
+ * which look soft on a phone's high-density screen. When the loaded thumb
+ * is clearly too small for the card it's shown in, swap in the full photo.
+ * New uploads have thumbs big enough, so they keep the lighter file.
+ * @param {HTMLImageElement} img
+ * @param {Object} product
+ */
+function upgradeIfBlurry(img, product) {
+  const full = product.image_urls?.[0];
+  if (!full || img.src === full) return;
+  const needed = img.clientWidth * (window.devicePixelRatio || 1) * 0.75;
+  if (img.naturalWidth && needed && img.naturalWidth < needed) img.src = full;
+}
 
 /**
  * Create a product card DOM element.
@@ -52,7 +71,7 @@ export function createProductCard(product, options = {}) {
       <span class="product-status">${escapeHtml(isSold ? 'Sold' : condition.name)}</span>
       ${isNew ? '<span class="product-new">Just in</span>' : ''}
     </div>
-    <div class="card-image-wrapper">
+    <div class="card-image-wrapper photo-frame">
       <img
         src="${escapeHtml(cardImageUrl(product))}"
         alt="${escapeHtml(product.title)}"
@@ -75,10 +94,12 @@ export function createProductCard(product, options = {}) {
 
   // Blur-up: clear the blur once the image has decoded.
   const img = card.querySelector('.card-image');
+  fitPhoto(img, { frameRatio: CARD_RATIO });
   if (img.complete) {
     img.classList.add('loaded');
   } else {
     img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
+    img.addEventListener('load', () => upgradeIfBlurry(img, product), { once: true });
     img.addEventListener(
       'error',
       () => {
