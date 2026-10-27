@@ -116,11 +116,6 @@ export default async function renderDashboard(params, container) {
                  </a>`
               : ''
           }
-          <a href="#/email-preview" class="settings-item">
-            ${icon('mail', { size: 20 })}
-            <span class="settings-label">Email templates preview</span>
-            ${icon('chevron-right', { size: 18, className: 'settings-chevron' })}
-          </a>
           <button type="button" class="settings-item settings-danger" data-logout>
             ${icon('logout', { size: 20 })}
             <span class="settings-label">Log out</span>

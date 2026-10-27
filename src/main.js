@@ -18,7 +18,6 @@ import renderLogin from './pages/login.js';
 import renderSignup from './pages/signup.js';
 import renderForgotPassword from './pages/forgot-password.js';
 import renderResetPassword from './pages/reset-password.js';
-import renderEmailPreview from './pages/email-preview.js';
 import renderDashboard from './pages/dashboard.js';
 import { renderNewListing, renderEditListing } from './pages/dashboard-form.js';
 import renderAdmin from './pages/admin.js';
@@ -37,7 +36,6 @@ function registerRoutes() {
   addRoute('/auth/signup', renderSignup);
   addRoute('/auth/forgot-password', renderForgotPassword);
   addRoute('/auth/reset-password', renderResetPassword);
-  addRoute('/email-preview', renderEmailPreview);
 
   // The route options gate dispatch; authGuard wraps the handler itself so a
   // page can never render unauthenticated even if invoked some other way.
