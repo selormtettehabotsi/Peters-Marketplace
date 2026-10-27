@@ -73,12 +73,17 @@ export function renderNavbar() {
           </a>
           <div class="avatar-dropdown hide-mobile" id="nav-avatar-menu">
             <button
-              class="avatar avatar-sm avatar-placeholder"
+              class="avatar avatar-sm${profile?.avatar_url ? '' : ' avatar-placeholder'}"
               id="nav-avatar-btn"
               aria-haspopup="true"
               aria-expanded="false"
               aria-label="Account menu"
-            >${escapeHtml(getInitials(profile?.full_name))}</button>
+              style="padding:0; overflow:hidden;"
+            >${
+              profile?.avatar_url
+                ? `<img src="${escapeHtml(profile.avatar_url)}" alt="${escapeHtml(profile.full_name || 'Account')}" style="width:100%; height:100%; object-fit:cover; display:block;" />`
+                : escapeHtml(getInitials(profile?.full_name))
+            }</button>
           </div>
         `
             : onAuthScreen
@@ -233,9 +238,16 @@ function toggleAvatarDropdown(nav) {
   const menu = document.createElement('div');
   menu.className = 'dropdown-menu';
   menu.innerHTML = `
-    <div class="dropdown-header">
-      <p class="font-semibold text-sm">${escapeHtml(profile?.full_name || 'My account')}</p>
-      <p class="text-xs text-muted">${escapeHtml(profile?.email || '')}</p>
+    <div class="dropdown-header flex items-center gap-3">
+      ${
+        profile?.avatar_url
+          ? `<img src="${escapeHtml(profile.avatar_url)}" class="avatar avatar-sm" alt="" style="object-fit:cover; flex-shrink:0;" />`
+          : `<span class="avatar avatar-sm avatar-placeholder" style="flex-shrink:0;">${escapeHtml(getInitials(profile?.full_name))}</span>`
+      }
+      <div style="min-width:0; flex:1;">
+        <p class="font-semibold text-sm truncate" style="margin:0;">${escapeHtml(profile?.full_name || 'My account')}</p>
+        <p class="text-xs text-muted truncate" style="margin:0;">${escapeHtml(profile?.email || '')}</p>
+      </div>
     </div>
     <a href="#/dashboard" class="dropdown-item">My Listings</a>
     <a href="#/dashboard/new" class="dropdown-item">New Listing</a>

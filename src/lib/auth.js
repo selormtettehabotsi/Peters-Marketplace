@@ -22,9 +22,15 @@ export async function initAuth() {
     console.warn('Auth session check failed:', error.message);
   }
 
-  // Listen for auth changes (login, logout, token refresh)
+  // Listen for auth changes (login, logout, token refresh, password recovery)
   supabase.auth.onAuthStateChange(async (event, session) => {
-    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+    if (
+      (event === 'SIGNED_IN' ||
+        event === 'TOKEN_REFRESHED' ||
+        event === 'PASSWORD_RECOVERY' ||
+        event === 'USER_UPDATED') &&
+      session?.user
+    ) {
       currentUser = session.user;
       await fetchProfile(session.user.id);
     } else if (event === 'SIGNED_OUT') {
@@ -92,10 +98,12 @@ export function friendlyAuthError(message) {
  */
 export async function signUp({ email, password, fullName, phone, whatsapp, roomNumber }) {
   try {
+    const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/#/dashboard` : undefined;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
           phone: phone,
@@ -105,10 +113,10 @@ export async function signUp({ email, password, fullName, phone, whatsapp, roomN
       },
     });
 
-    if (error) return { user: null, error: friendlyAuthError(error.message) };
-    return { user: data.user, error: null };
+    if (error) return { user: null, session: null, error: friendlyAuthError(error.message) };
+    return { user: data.user, session: data.session, error: null };
   } catch (error) {
-    return { user: null, error: friendlyAuthError(error.message) };
+    return { user: null, session: null, error: friendlyAuthError(error.message) };
   }
 }
 
@@ -211,6 +219,87 @@ export function onAuthChange(callback) {
 
 function notifyListeners() {
   authListeners.forEach((cb) => cb({ user: currentUser, profile: currentProfile }));
+}
+
+/**
+ * Send password reset email.
+ * @param {string} email
+ * @returns {Promise<{success: boolean, error: string|null}>}
+ */
+export async function resetPasswordForEmail(email) {
+  try {
+    const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/#/auth/reset-password` : undefined;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl,
+    });
+    if (error) return { success: false, error: friendlyAuthError(error.message) };
+    return { success: true, error: null };
+  } catch (error) {
+    return { success: false, error: friendlyAuthError(error.message) };
+  }
+}
+
+/**
+ * Update current user's password (used during password reset flow).
+ * @param {string} newPassword
+ * @returns {Promise<{success: boolean, user: Object|null, error: string|null}>}
+ */
+export async function updateUserPassword(newPassword) {
+  try {
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    if (error) return { success: false, user: null, error: friendlyAuthError(error.message) };
+    return { success: true, user: data.user, error: null };
+  } catch (error) {
+    return { success: false, user: null, error: friendlyAuthError(error.message) };
+  }
+}
+
+/**
+ * Resend signup confirmation email.
+ * @param {string} email
+ * @returns {Promise<{success: boolean, error: string|null}>}
+ */
+export async function resendVerificationEmail(email) {
+  try {
+    const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/#/dashboard` : undefined;
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: redirectUrl,
+      },
+    });
+    if (error) return { success: false, error: friendlyAuthError(error.message) };
+    return { success: true, error: null };
+  } catch (error) {
+    return { success: false, error: friendlyAuthError(error.message) };
+  }
+}
+
+/**
+ * Update the vendor's profile in the profiles table.
+ * @param {string} userId
+ * @param {Object} patch
+ * @returns {Promise<{profile: Object|null, error: string|null}>}
+ */
+export async function updateProfile(userId, patch) {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(patch)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) return { profile: null, error: error.message };
+    currentProfile = data;
+    notifyListeners();
+    return { profile: data, error: null };
+  } catch (error) {
+    return { profile: null, error: error.message };
+  }
 }
 
 /** Set auth state directly — test helper. */

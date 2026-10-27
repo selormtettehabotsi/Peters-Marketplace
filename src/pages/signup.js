@@ -1,4 +1,4 @@
-import { signUp, logIn } from '../lib/auth.js';
+import { signUp, logIn, resendVerificationEmail } from '../lib/auth.js';
 import { validateSignup, isValid } from '../lib/validation.js';
 import { applyErrors, clearFieldErrors, setButtonLoading, readForm, field } from '../lib/form-utils.js';
 import { navigate } from '../router.js';
@@ -206,7 +206,7 @@ export default function renderSignup(params, container) {
 
     const restore = setButtonLoading(submit, 'Creating account…');
 
-    const { error } = await signUp({
+    const { user, session, error } = await signUp({
       email: data.email,
       password: data.password,
       fullName: data.fullName,
@@ -226,9 +226,8 @@ export default function renderSignup(params, container) {
     const loginRes = await logIn(data.email, data.password);
     restore();
 
-    if (loginRes?.error && loginRes.error.toLowerCase().includes('confirm')) {
-      showToast('Account created! Please check your email to confirm before logging in.', 'info');
-      navigate('/auth/login');
+    if ((loginRes?.error && loginRes.error.toLowerCase().includes('confirm')) || (!session && !loginRes?.user)) {
+      renderVerificationNotice(container, data.email);
       return;
     }
 
@@ -236,3 +235,46 @@ export default function renderSignup(params, container) {
     navigate('/dashboard');
   });
 }
+
+function renderVerificationNotice(container, email) {
+  const cardBody = container.querySelector('.auth-card .card-body');
+  if (!cardBody) return;
+
+  cardBody.innerHTML = `
+    <div class="auth-header" style="text-align: center;">
+      <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:var(--radius-full); background:var(--color-paper-3); color:var(--color-primary); margin-bottom:var(--space-4);">
+        ${icon('mail', { size: 32 })}
+      </div>
+      <h1 class="auth-title" style="font-size: clamp(2rem, 6vw, 2.6rem);">Verify your email</h1>
+      <p class="text-muted" style="margin-top:var(--space-2);">
+        We sent a verification link to <strong style="color:var(--color-ink);">${email}</strong>
+      </p>
+    </div>
+
+    <div style="background:var(--color-paper); padding:var(--space-4); border-radius:var(--radius-lg); margin-bottom:var(--space-6); font-size:var(--font-sm); color:var(--color-ink-2); line-height:1.5;">
+      Please check your inbox (and spam folder) and click the confirmation link to activate your seller account at St. Peter's Hostel.
+    </div>
+
+    <div class="flex flex-col gap-3">
+      <button type="button" class="btn btn-secondary btn-full btn-lg" id="resend-verify-btn">
+        ${icon('refresh', { size: 16 })} Resend Verification Email
+      </button>
+      <a href="#/auth/login" class="btn btn-primary btn-full btn-lg">
+        Proceed to Log In
+      </a>
+    </div>
+  `;
+
+  const resendBtn = cardBody.querySelector('#resend-verify-btn');
+  resendBtn?.addEventListener('click', async () => {
+    const restore = setButtonLoading(resendBtn, 'Resending…');
+    const res = await resendVerificationEmail(email);
+    restore();
+    if (res.error) {
+      showToast(res.error, 'error');
+    } else {
+      showToast('Verification email resent! Check your inbox.', 'success');
+    }
+  });
+}
+

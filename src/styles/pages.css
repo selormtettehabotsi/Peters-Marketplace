@@ -1465,7 +1465,77 @@
 
 .dash-header .avatar {
   font-size: var(--font-lg);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-full);
+}
+
+.dash-avatar-wrapper {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.dash-avatar-wrapper .avatar-xl {
+  width: 76px;
+  height: 76px;
+  border-radius: var(--radius-full);
+  border: 3px solid var(--color-paper);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  object-fit: cover;
+  display: flex;
+}
+
+.dash-avatar-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 2px solid var(--color-paper);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.dash-avatar-badge:hover {
+  background-color: var(--color-ink);
+  transform: scale(1.08);
+}
+
+.dash-avatar-spinner {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-white);
+}
+
+.dash-avatar-spinner[hidden] {
+  display: none;
+}
+
+.btn-remove-avatar {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 4px;
+  font-size: var(--font-xs);
+  color: var(--color-ink-2);
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.btn-remove-avatar:hover {
+  color: var(--color-danger);
 }
 
 .dash-header-text {

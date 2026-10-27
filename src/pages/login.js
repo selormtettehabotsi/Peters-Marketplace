@@ -50,6 +50,9 @@ export default function renderLogin(params, container) {
               required: true,
               autocomplete: 'current-password',
             })}
+            <div class="auth-extra-links" style="display:flex; justify-content:flex-end; margin-top:-8px; margin-bottom:var(--space-4);">
+              <a href="#/auth/forgot-password" class="auth-switch" style="font-size:var(--font-xs); text-decoration:none;">Forgot password?</a>
+            </div>
             <button type="submit" class="btn btn-primary btn-full btn-lg" id="login-submit">
               Log In
             </button>

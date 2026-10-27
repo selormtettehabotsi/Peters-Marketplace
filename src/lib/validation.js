@@ -34,6 +34,21 @@ export function validateLogin({ email, password }) {
 }
 
 /**
+ * Validate the reset password form.
+ * @returns {Object<string,string>} field → error message
+ */
+export function validateResetPassword({ password, confirmPassword }) {
+  const errors = {};
+  if (!password) errors.password = 'Password is required';
+  else if (!isValidPassword(password)) errors.password = 'Password must be at least 6 characters';
+
+  if (!confirmPassword) errors.confirmPassword = 'Please confirm your password';
+  else if (password !== confirmPassword) errors.confirmPassword = 'Passwords do not match';
+
+  return errors;
+}
+
+/**
  * Validate the signup form.
  * @returns {Object<string,string>} field → error message
  */

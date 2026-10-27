@@ -1,4 +1,4 @@
-import { getUser, getProfile, refreshProfile, isAdmin } from '../lib/auth.js';
+import { getUser, getProfile, refreshProfile, isAdmin, updateProfile } from '../lib/auth.js';
 import {
   fetchMyProducts,
   calculateSellerStats,
@@ -6,14 +6,15 @@ import {
   deleteProduct,
   fetchProduct,
 } from '../lib/api.js';
-import { deleteProductMedia } from '../lib/storage.js';
+import { deleteProductMedia, uploadAvatar, deleteAvatar } from '../lib/storage.js';
+import { validateImageFile } from '../lib/validation.js';
 import { formatPrice, formatDate, escapeHtml, getInitials } from '../lib/format.js';
 import { cardImageUrl } from '../components/product-card.js';
 import { icon } from '../components/icons.js';
 import { showToast } from '../components/toast.js';
 import { showConfirmModal } from '../components/modal.js';
 import { watchNavigation } from '../router.js';
-import { logOutAndGoHome } from '../components/navbar.js';
+import { logOutAndGoHome, renderNavbar } from '../components/navbar.js';
 
 const STAT_TILES = [
   { key: 'total', label: 'Total Listings', icon: 'package' },
@@ -42,13 +43,25 @@ export default async function renderDashboard(params, container) {
   container.innerHTML = `
     <div class="container section-sm dashboard">
       <header class="dash-header">
-        <span class="avatar avatar-lg avatar-placeholder" aria-hidden="true">
-          ${escapeHtml(getInitials(profile?.full_name))}
-        </span>
+        <div class="dash-avatar-wrapper" id="dash-avatar-wrapper">
+          ${
+            profile?.avatar_url
+              ? `<img src="${escapeHtml(profile.avatar_url)}" class="avatar avatar-xl dash-avatar-img" id="dash-avatar-img" alt="${escapeHtml(profile.full_name || 'Vendor')}" />`
+              : `<span class="avatar avatar-xl avatar-placeholder dash-avatar-placeholder" id="dash-avatar-placeholder" aria-hidden="true">${escapeHtml(getInitials(profile?.full_name))}</span>`
+          }
+          <label for="dash-avatar-input" class="dash-avatar-badge" title="Upload profile photo" aria-label="Upload profile photo">
+            ${icon('camera', { size: 15 })}
+            <input type="file" id="dash-avatar-input" accept="image/jpeg,image/png,image/webp" style="display:none;" />
+          </label>
+          <div class="dash-avatar-spinner" id="dash-avatar-spinner" hidden>
+            <span class="spinner spinner-sm"></span>
+          </div>
+        </div>
         <div class="dash-header-text">
           <h1 class="dash-title">Hi, ${escapeHtml(profile?.full_name?.split(' ')[0] || 'seller')}</h1>
           <p class="dash-subtitle">
             ${profile?.room_number ? `Room ${escapeHtml(profile.room_number)} · ` : ''}Your listings and stats
+            ${profile?.avatar_url ? ` · <button type="button" class="btn-remove-avatar" id="remove-avatar-btn">Remove photo</button>` : ''}
           </p>
         </div>
         <a href="#/dashboard/new" class="btn btn-primary hide-mobile${profile?.is_banned ? ' disabled' : ''}">
@@ -103,6 +116,11 @@ export default async function renderDashboard(params, container) {
                  </a>`
               : ''
           }
+          <a href="#/email-preview" class="settings-item">
+            ${icon('mail', { size: 20 })}
+            <span class="settings-label">Email templates preview</span>
+            ${icon('chevron-right', { size: 18, className: 'settings-chevron' })}
+          </a>
           <button type="button" class="settings-item settings-danger" data-logout>
             ${icon('logout', { size: 20 })}
             <span class="settings-label">Log out</span>
@@ -113,6 +131,72 @@ export default async function renderDashboard(params, container) {
   `;
 
   container.querySelector('[data-logout]').addEventListener('click', logOutAndGoHome);
+
+  // Avatar upload & removal handlers
+  const avatarInput = container.querySelector('#dash-avatar-input');
+  const avatarSpinner = container.querySelector('#dash-avatar-spinner');
+
+  avatarInput?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      showToast(validation.error, 'error');
+      avatarInput.value = '';
+      return;
+    }
+
+    try {
+      if (avatarSpinner) avatarSpinner.hidden = false;
+      const avatarUrl = await uploadAvatar(file, user.id);
+      const { error } = await updateProfile(user.id, { avatar_url: avatarUrl });
+
+      if (error) {
+        showToast('Could not save profile picture: ' + error, 'error');
+      } else {
+        showToast('Profile picture updated!', 'success');
+        await refreshProfile();
+        renderNavbar();
+        renderDashboard(params, container);
+      }
+    } catch (err) {
+      showToast('Upload failed: ' + (err.message || 'Please try again'), 'error');
+    } finally {
+      if (avatarSpinner) avatarSpinner.hidden = true;
+      avatarInput.value = '';
+    }
+  });
+
+  const removeAvatarBtn = container.querySelector('#remove-avatar-btn');
+  removeAvatarBtn?.addEventListener('click', async () => {
+    const confirmed = await showConfirmModal(
+      'Remove Profile Photo',
+      'Are you sure you want to remove your profile photo?',
+      { confirmLabel: 'Remove' }
+    );
+    if (!confirmed) return;
+
+    try {
+      if (avatarSpinner) avatarSpinner.hidden = false;
+      const currentUrl = profile?.avatar_url;
+      if (currentUrl) await deleteAvatar(currentUrl);
+
+      const { error } = await updateProfile(user.id, { avatar_url: null });
+      if (error) {
+        showToast('Could not remove photo: ' + error, 'error');
+      } else {
+        showToast('Profile photo removed', 'success');
+        await refreshProfile();
+        renderNavbar();
+        renderDashboard(params, container);
+      }
+    } catch (err) {
+      showToast('Could not remove photo: ' + err.message, 'error');
+    } finally {
+      if (avatarSpinner) avatarSpinner.hidden = true;
+    }
+  });
 
   const area = container.querySelector('#listings-area');
 

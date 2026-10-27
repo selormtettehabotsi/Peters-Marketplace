@@ -4,6 +4,7 @@ import {
   isValidPhone,
   isValidPassword,
   validateLogin,
+  validateResetPassword,
   validateSignup,
   validateProduct,
   validateImageFile,
@@ -190,5 +191,27 @@ describe('validateImageFile', () => {
 
   it('accepts a file exactly at the size limit', () => {
     expect(validateImageFile(fakeFile('image/png', 20 * 1024 * 1024)).valid).toBe(true);
+  });
+});
+
+describe('validateResetPassword', () => {
+  it('accepts matching valid passwords', () => {
+    const errors = validateResetPassword({ password: 'secretpassword', confirmPassword: 'secretpassword' });
+    expect(isValid(errors)).toBe(true);
+  });
+
+  it('rejects passwords shorter than 6 characters', () => {
+    const errors = validateResetPassword({ password: '123', confirmPassword: '123' });
+    expect(errors.password).toMatch(/at least 6 characters/);
+  });
+
+  it('rejects mismatched passwords', () => {
+    const errors = validateResetPassword({ password: 'secret123', confirmPassword: 'different123' });
+    expect(errors.confirmPassword).toMatch(/do not match/);
+  });
+
+  it('requires confirmation password', () => {
+    const errors = validateResetPassword({ password: 'secret123', confirmPassword: '' });
+    expect(errors.confirmPassword).toMatch(/confirm your password/);
   });
 });

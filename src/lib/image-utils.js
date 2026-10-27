@@ -223,6 +223,39 @@ export async function prepareImage(file) {
 }
 
 /**
+ * Center-crop and scale an image for an avatar (square, WebP).
+ * @param {File|Blob} file
+ * @param {number} [size=400]
+ * @returns {Promise<Blob>}
+ */
+export async function prepareAvatar(file, size = 400) {
+  try {
+    const decoded = await decodeImage(file);
+    try {
+      const minSide = Math.min(decoded.width, decoded.height);
+      const cropX = Math.round((decoded.width - minSide) / 2);
+      const cropY = Math.round((decoded.height - minSide) / 2);
+
+      const targetSize = Math.min(size, minSide);
+      const canvas = document.createElement('canvas');
+      canvas.width = targetSize;
+      canvas.height = targetSize;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return file;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(decoded.source, cropX, cropY, minSide, minSide, 0, 0, targetSize, targetSize);
+
+      const blob = await encodeWebp(canvas, 0.85);
+      return blob || file;
+    } finally {
+      if (typeof decoded.close === 'function') decoded.close();
+    }
+  } catch {
+    return file;
+  }
+}
+
+/**
  * Compress and resize a single image (long edge capped, WebP).
  * @param {File|Blob} file
  * @returns {Promise<Blob>}

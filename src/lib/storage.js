@@ -1,9 +1,10 @@
 import { supabase } from '../supabase.js';
-import { prepareImage } from './image-utils.js';
+import { prepareImage, prepareAvatar } from './image-utils.js';
 import { UPLOAD_LIMITS } from './constants.js';
 
 const IMAGE_BUCKET = 'product-images';
 const VIDEO_BUCKET = 'product-videos';
+const AVATAR_BUCKET = 'avatars';
 
 /**
  * Recover the in-bucket object path from a Supabase public URL.
@@ -178,5 +179,41 @@ export async function deleteSingleImage(imageUrl, thumbnailUrl) {
     await supabase.storage.from(IMAGE_BUCKET).remove(paths);
   } catch (error) {
     console.warn('Could not remove image:', error.message);
+  }
+}
+
+/**
+ * Upload a vendor profile picture to Supabase Storage.
+ * @param {File} file
+ * @param {string} userId
+ * @returns {Promise<string>} public URL of uploaded avatar
+ */
+export async function uploadAvatar(file, userId) {
+  const prepared = await prepareAvatar(file, 400);
+  const token = Date.now().toString(36);
+  const avatarPath = `${userId}/avatar_${token}.webp`;
+  const bucket = supabase.storage.from(AVATAR_BUCKET);
+
+  const { error } = await bucket.upload(avatarPath, prepared, {
+    contentType: 'image/webp',
+    upsert: true,
+  });
+  if (error) throw error;
+
+  return bucket.getPublicUrl(avatarPath).data.publicUrl;
+}
+
+/**
+ * Remove an avatar from storage.
+ * @param {string} avatarUrl
+ */
+export async function deleteAvatar(avatarUrl) {
+  const path = extractPathFromUrl(avatarUrl, AVATAR_BUCKET);
+  if (!path) return;
+
+  try {
+    await supabase.storage.from(AVATAR_BUCKET).remove([path]);
+  } catch (error) {
+    console.warn('Could not remove avatar:', error.message);
   }
 }
