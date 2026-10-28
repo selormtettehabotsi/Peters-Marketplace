@@ -6,6 +6,7 @@ import {
   uploadProductVideo,
   deleteSingleImage,
   deleteSingleVideo,
+  friendlyStorageError,
 } from '../lib/storage.js';
 import { validateProduct, isValid } from '../lib/validation.js';
 import { applyErrors, clearFieldErrors, readForm, field } from '../lib/form-utils.js';
@@ -273,7 +274,7 @@ async function renderForm({ mode, product }, container) {
       hideProgress();
       submit.disabled = false;
       submit.innerHTML = originalLabel;
-      showToast(error.message || 'Could not save the listing', 'error');
+      showToast(friendlyStorageError(error, 'Could not save the listing. Please try again.'), 'error');
     }
   });
 }

@@ -138,7 +138,31 @@ export function validateImageFile(file) {
   return { valid: true, error: null };
 }
 
+/**
+ * Validate profile update information.
+ * @param {Object} data - { fullName, phone, whatsapp, roomNumber }
+ * @returns {Object<string,string>} field → error message
+ */
+export function validateProfileUpdate({ fullName, phone, whatsapp, roomNumber }) {
+  const errors = {};
+
+  if (!fullName || !fullName.trim()) errors.fullName = 'Full name is required';
+  else if (fullName.trim().length < 2) errors.fullName = 'Enter your full name';
+
+  if (!phone || !phone.trim()) errors.phone = 'Phone number is required';
+  else if (!isValidPhone(phone)) errors.phone = 'Enter a valid phone number (at least 10 digits)';
+
+  if (whatsapp && whatsapp.trim() && !isValidPhone(whatsapp)) {
+    errors.whatsapp = 'Enter a valid WhatsApp number';
+  }
+
+  if (!roomNumber || !roomNumber.trim()) errors.roomNumber = 'Room number is required';
+
+  return errors;
+}
+
 /** True when the errors object returned above holds no entries. */
 export function isValid(errors) {
   return Object.keys(errors).length === 0;
 }
+

@@ -8,8 +8,10 @@ import {
   validateSignup,
   validateProduct,
   validateImageFile,
+  validateProfileUpdate,
   isValid,
 } from '../src/lib/validation.js';
+import { friendlyStorageError } from '../src/lib/storage.js';
 import { UPLOAD_LIMITS } from '../src/lib/constants.js';
 
 /** Build a fake File without touching the filesystem. */
@@ -215,3 +217,80 @@ describe('validateResetPassword', () => {
     expect(errors.confirmPassword).toMatch(/confirm your password/);
   });
 });
+
+describe('validateProfileUpdate', () => {
+  it('accepts valid profile updates', () => {
+    const errors = validateProfileUpdate({
+      fullName: 'Selorm Mensah',
+      phone: '0555586125',
+      whatsapp: '0555586125',
+      roomNumber: 'A102',
+    });
+    expect(isValid(errors)).toBe(true);
+  });
+
+  it('rejects missing or too short names', () => {
+    const errors = validateProfileUpdate({
+      fullName: 'A',
+      phone: '0555586125',
+      roomNumber: 'A102',
+    });
+    expect(errors.fullName).toMatch(/full name/i);
+  });
+
+  it('rejects invalid phone numbers', () => {
+    const errors = validateProfileUpdate({
+      fullName: 'Selorm Mensah',
+      phone: '123',
+      roomNumber: 'A102',
+    });
+    expect(errors.phone).toMatch(/valid phone/i);
+  });
+
+  it('rejects invalid WhatsApp numbers if provided', () => {
+    const errors = validateProfileUpdate({
+      fullName: 'Selorm Mensah',
+      phone: '0555586125',
+      whatsapp: 'invalid-whatsapp',
+      roomNumber: 'A102',
+    });
+    expect(errors.whatsapp).toMatch(/valid whatsapp/i);
+  });
+
+  it('requires room number', () => {
+    const errors = validateProfileUpdate({
+      fullName: 'Selorm Mensah',
+      phone: '0555586125',
+      roomNumber: '   ',
+    });
+    expect(errors.roomNumber).toMatch(/room number/i);
+  });
+});
+
+describe('friendlyStorageError', () => {
+  it('masks quota and full storage errors', () => {
+    expect(friendlyStorageError(new Error('Storage quota exceeded for bucket'))).toMatch(
+      /storage is temporarily full/i
+    );
+  });
+
+  it('masks raw Supabase/PostgreSQL/Firebase technical errors', () => {
+    const masked = friendlyStorageError(new Error('supabase error: syntax error at or near postgres table'));
+    expect(masked).toBe('Could not complete file upload. Please try again.');
+    expect(masked.toLowerCase()).not.toContain('supabase');
+    expect(masked.toLowerCase()).not.toContain('postgres');
+
+    const authMasked = friendlyStorageError(new Error('supabase: row-level security policy violated'));
+    expect(authMasked.toLowerCase()).not.toContain('supabase');
+    expect(authMasked.toLowerCase()).not.toContain('row-level');
+
+    expect(friendlyStorageError(new Error('Firebase Storage: quota reached'))).toMatch(
+      /storage is temporarily full/i
+    );
+  });
+
+  it('gives clear guidance on oversized files', () => {
+    expect(friendlyStorageError(new Error('Payload too large'))).toMatch(/under 20MB/i);
+  });
+});
+

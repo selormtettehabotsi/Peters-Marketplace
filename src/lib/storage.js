@@ -217,3 +217,60 @@ export async function deleteAvatar(avatarUrl) {
     console.warn('Could not remove avatar:', error.message);
   }
 }
+
+/**
+ * Format any Supabase storage error into a friendly, student-facing message.
+ * Never leaks raw database or infrastructure errors to users.
+ * @param {Error|string} err
+ * @param {string} [fallback]
+ * @returns {string}
+ */
+export function friendlyStorageError(err, fallback = 'Could not complete file upload. Please try again.') {
+  if (!err) return fallback;
+  const rawMsg = typeof err === 'string' ? err : err.message || '';
+  const msg = rawMsg.toLowerCase();
+
+  if (
+    msg.includes('quota') ||
+    msg.includes('storage full') ||
+    msg.includes('limit exceeded') ||
+    msg.includes('bucket full') ||
+    msg.includes('resource_exhausted') ||
+    msg.includes('insufficient_storage')
+  ) {
+    return 'Marketplace storage is temporarily full. Please contact the hostel admin.';
+  }
+  if (msg.includes('payload') || msg.includes('too large') || msg.includes('413') || msg.includes('entity too large')) {
+    return 'File is too large. Please select a photo under 20MB or video under 10MB.';
+  }
+  if (msg.includes('network') || msg.includes('fetch') || msg.includes('failed to fetch') || msg.includes('connection') || msg.includes('timeout')) {
+    return 'Network connection issue. Please check your internet connection and try again.';
+  }
+  if (msg.includes('mime') || msg.includes('format') || msg.includes('type') || msg.includes('extension')) {
+    return 'Unsupported file format. Please upload JPEG, PNG, WebP or MP4.';
+  }
+  if (msg.includes('jwt') || msg.includes('unauthorized') || msg.includes('auth') || msg.includes('policy') || msg.includes('security') || msg.includes('pgrst301')) {
+    return 'Session expired or unauthorized. Please log in again.';
+  }
+  if (msg.includes('duplicate') || msg.includes('unique')) {
+    return 'An item with these details already exists.';
+  }
+  // Suppress any raw technical leaks (supabase, firebase, postgres, SQL codes)
+  if (
+    msg.includes('supabase') ||
+    msg.includes('firebase') ||
+    msg.includes('postgres') ||
+    msg.includes('relation') ||
+    msg.includes('column') ||
+    msg.includes('violates') ||
+    msg.includes('pgrst')
+  ) {
+    return fallback;
+  }
+  // If it's a short, user-friendly custom string (not a stack trace or raw SQL), display safely
+  if (rawMsg && rawMsg.length < 80 && !/[{<>;$]/.test(rawMsg)) {
+    return rawMsg;
+  }
+  return fallback;
+}
+

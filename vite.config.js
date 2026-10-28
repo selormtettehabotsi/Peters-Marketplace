@@ -87,8 +87,10 @@ export default defineConfig({
     port: 3000,
     open: true,
     allowedHosts: [
-      // Allow ngrok
+      // Allow ngrok and production custom domains
       'mumbly-paroicous-ozie.ngrok-free.dev',
+      'spmarket.sketech.dev',
+      'www.spmarket.sketech.dev',
     ],
   },
   build: {

@@ -294,6 +294,19 @@ export async function updateProfile(userId, patch) {
       .single();
 
     if (error) return { profile: null, error: error.message };
+
+    // Sync auth user metadata if relevant
+    const metaPatch = {};
+    if (patch.full_name !== undefined) metaPatch.full_name = patch.full_name;
+    if (patch.phone !== undefined) metaPatch.phone = patch.phone;
+    if (patch.whatsapp !== undefined) metaPatch.whatsapp = patch.whatsapp;
+    if (patch.room_number !== undefined) metaPatch.room_number = patch.room_number;
+    if (patch.avatar_url !== undefined) metaPatch.avatar_url = patch.avatar_url;
+
+    if (Object.keys(metaPatch).length > 0) {
+      supabase.auth.updateUser({ data: metaPatch }).catch(() => {});
+    }
+
     currentProfile = data;
     notifyListeners();
     return { profile: data, error: null };

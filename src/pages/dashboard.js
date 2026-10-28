@@ -6,8 +6,9 @@ import {
   deleteProduct,
   fetchProduct,
 } from '../lib/api.js';
-import { deleteProductMedia, uploadAvatar, deleteAvatar } from '../lib/storage.js';
-import { validateImageFile } from '../lib/validation.js';
+import { deleteProductMedia, uploadAvatar, deleteAvatar, friendlyStorageError } from '../lib/storage.js';
+import { validateImageFile, validateProfileUpdate } from '../lib/validation.js';
+import { applyErrors, clearFieldErrors, readForm, field, setButtonLoading } from '../lib/form-utils.js';
 import { formatPrice, formatDate, escapeHtml, getInitials } from '../lib/format.js';
 import { cardImageUrl } from '../components/product-card.js';
 import { icon } from '../components/icons.js';
@@ -61,6 +62,7 @@ export default async function renderDashboard(params, container) {
           <h1 class="dash-title">Hi, ${escapeHtml(profile?.full_name?.split(' ')[0] || 'seller')}</h1>
           <p class="dash-subtitle">
             ${profile?.room_number ? `Room ${escapeHtml(profile.room_number)} · ` : ''}Your listings and stats
+            · <button type="button" class="btn-remove-avatar" id="edit-profile-quick-btn" style="color: var(--color-primary); font-weight: 600;">Edit profile</button>
             ${profile?.avatar_url ? ` · <button type="button" class="btn-remove-avatar" id="remove-avatar-btn">Remove photo</button>` : ''}
           </p>
         </div>
@@ -101,11 +103,25 @@ export default async function renderDashboard(params, container) {
       </section>
 
       <section class="dash-section">
-        <h2 class="section-title">Account</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+          <h2 class="section-title" style="margin-bottom: 0;">Account & Profile</h2>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-profile">
+            ${icon('edit', { size: 14 })} Edit Profile
+          </button>
+        </div>
         <div class="settings-list">
-          <div class="settings-item">
+          <div class="settings-item" style="cursor: pointer;" id="item-profile-details" title="Click to edit profile">
             ${icon('user', { size: 20 })}
-            <span class="settings-label">${escapeHtml(profile?.email || '')}</span>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-weight: 600; color: var(--color-ink);">${escapeHtml(profile?.full_name || 'Vendor')}</div>
+              <div style="font-size: var(--font-xs); color: var(--color-ink-2);">
+                ${profile?.room_number ? `Room ${escapeHtml(profile.room_number)} · ` : ''}${escapeHtml(profile?.email || '')}
+              </div>
+              <div style="font-size: var(--font-xs); color: var(--color-ink-2); margin-top: 2px;">
+                📞 ${escapeHtml(profile?.phone || 'No phone')} · 💬 ${escapeHtml(profile?.whatsapp || profile?.phone || 'No WhatsApp')}
+              </div>
+            </div>
+            ${icon('chevron-right', { size: 18, className: 'settings-chevron' })}
           </div>
           ${
             isAdmin()
@@ -144,19 +160,23 @@ export default async function renderDashboard(params, container) {
 
     try {
       if (avatarSpinner) avatarSpinner.hidden = false;
+      const oldAvatarUrl = profile?.avatar_url;
       const avatarUrl = await uploadAvatar(file, user.id);
       const { error } = await updateProfile(user.id, { avatar_url: avatarUrl });
 
       if (error) {
-        showToast('Could not save profile picture: ' + error, 'error');
+        showToast(friendlyStorageError(error, 'Could not save profile picture. Please try again.'), 'error');
       } else {
+        if (oldAvatarUrl) {
+          await deleteAvatar(oldAvatarUrl);
+        }
         showToast('Profile picture updated!', 'success');
         await refreshProfile();
         renderNavbar();
         renderDashboard(params, container);
       }
     } catch (err) {
-      showToast('Upload failed: ' + (err.message || 'Please try again'), 'error');
+      showToast(friendlyStorageError(err, 'Upload failed. Please try again.'), 'error');
     } finally {
       if (avatarSpinner) avatarSpinner.hidden = true;
       avatarInput.value = '';
@@ -179,7 +199,7 @@ export default async function renderDashboard(params, container) {
 
       const { error } = await updateProfile(user.id, { avatar_url: null });
       if (error) {
-        showToast('Could not remove photo: ' + error, 'error');
+        showToast(friendlyStorageError(error, 'Could not remove photo. Please try again.'), 'error');
       } else {
         showToast('Profile photo removed', 'success');
         await refreshProfile();
@@ -187,11 +207,24 @@ export default async function renderDashboard(params, container) {
         renderDashboard(params, container);
       }
     } catch (err) {
-      showToast('Could not remove photo: ' + err.message, 'error');
+      showToast(friendlyStorageError(err, 'Could not remove photo. Please try again.'), 'error');
     } finally {
       if (avatarSpinner) avatarSpinner.hidden = true;
     }
   });
+
+  // Profile editing modal handler
+  const handleOpenEditProfile = () => {
+    openEditProfileModal(profile, async () => {
+      await refreshProfile();
+      renderNavbar();
+      renderDashboard(params, container);
+    });
+  };
+
+  container.querySelector('#edit-profile-quick-btn')?.addEventListener('click', handleOpenEditProfile);
+  container.querySelector('#btn-edit-profile')?.addEventListener('click', handleOpenEditProfile);
+  container.querySelector('#item-profile-details')?.addEventListener('click', handleOpenEditProfile);
 
   const area = container.querySelector('#listings-area');
 
@@ -329,4 +362,137 @@ export default async function renderDashboard(params, container) {
   });
 
   await refreshListings();
+}
+
+/**
+ * Modal to edit vendor profile (Full Name, Room Number, Phone, WhatsApp).
+ * @param {Object} currentProfile
+ * @param {Function} onSaved - callback after successful update
+ */
+function openEditProfileModal(currentProfile, onSaved) {
+  const container = document.getElementById('modal-container') || document.body;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.id = 'edit-profile-modal-backdrop';
+
+  backdrop.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Edit Profile">
+      <div class="modal-header">
+        <h3>Edit Profile</h3>
+        <button class="btn btn-icon btn-ghost" data-modal-close aria-label="Close dialog">
+          ${icon('close')}
+        </button>
+      </div>
+      <form id="edit-profile-form" novalidate>
+        <div class="modal-body">
+          <p style="font-size: var(--font-sm); color: var(--color-ink-2); margin-bottom: var(--space-4);">
+            Update your seller info. Buyers at St. Peter's Hostel use this to contact and locate you.
+          </p>
+          ${field({
+            name: 'fullName',
+            label: 'Full Name',
+            value: currentProfile?.full_name || '',
+            placeholder: 'e.g. Kwame Mensah',
+            required: true,
+          })}
+          ${field({
+            name: 'roomNumber',
+            label: 'Room Number',
+            value: currentProfile?.room_number || '',
+            placeholder: 'e.g. B204',
+            required: true,
+          })}
+          ${field({
+            name: 'phone',
+            label: 'Phone Number',
+            type: 'tel',
+            value: currentProfile?.phone || '',
+            placeholder: 'e.g. 0555586125',
+            required: true,
+          })}
+          ${field({
+            name: 'whatsapp',
+            label: 'WhatsApp Number',
+            type: 'tel',
+            value: currentProfile?.whatsapp || currentProfile?.phone || '',
+            placeholder: 'e.g. 0555586125',
+            hint: 'Defaults to phone number if left identical',
+          })}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" data-modal-close>Cancel</button>
+          <button type="submit" class="btn btn-primary" id="save-profile-btn">
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  const close = () => {
+    document.removeEventListener('keydown', onKeydown);
+    backdrop.remove();
+  };
+
+  const onKeydown = (e) => {
+    if (e.key === 'Escape') close();
+  };
+
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop || e.target.closest('[data-modal-close]')) {
+      close();
+    }
+  });
+
+  const form = backdrop.querySelector('#edit-profile-form');
+  const submitBtn = backdrop.querySelector('#save-profile-btn');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearFieldErrors(form);
+
+    const values = readForm(form);
+    const fullName = values.fullName?.trim() || '';
+    const roomNumber = values.roomNumber?.trim() || '';
+    const phone = values.phone?.trim() || '';
+    const whatsapp = values.whatsapp?.trim() || phone;
+
+    const errors = validateProfileUpdate({
+      fullName,
+      roomNumber,
+      phone,
+      whatsapp,
+    });
+
+    if (applyErrors(form, errors)) return;
+
+    const restore = setButtonLoading(submitBtn, 'Saving…');
+    try {
+      const user = getUser();
+      const { error } = await updateProfile(user.id, {
+        full_name: fullName,
+        room_number: roomNumber,
+        phone,
+        whatsapp,
+      });
+
+      if (error) {
+        showToast(friendlyStorageError(error, 'Could not update profile. Please try again.'), 'error');
+        restore();
+      } else {
+        showToast('Profile updated successfully!', 'success');
+        close();
+        if (onSaved) await onSaved();
+      }
+    } catch (err) {
+      showToast(friendlyStorageError(err, 'Failed to update profile.'), 'error');
+      restore();
+    }
+  });
+
+  document.addEventListener('keydown', onKeydown);
+  container.appendChild(backdrop);
+
+  const firstInput = form.querySelector('input');
+  if (firstInput) firstInput.focus();
 }
