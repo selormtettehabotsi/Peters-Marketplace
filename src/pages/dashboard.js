@@ -117,8 +117,16 @@ export default async function renderDashboard(params, container) {
               <div style="font-size: var(--font-xs); color: var(--color-ink-2);">
                 ${profile?.room_number ? `Room ${escapeHtml(profile.room_number)} · ` : ''}${escapeHtml(profile?.email || '')}
               </div>
-              <div style="font-size: var(--font-xs); color: var(--color-ink-2); margin-top: 2px;">
-                📞 ${escapeHtml(profile?.phone || 'No phone')} · 💬 ${escapeHtml(profile?.whatsapp || profile?.phone || 'No WhatsApp')}
+              <div style="font-size: var(--font-xs); color: var(--color-ink-2); margin-top: 4px; display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+                <span style="display: inline-flex; align-items: center; gap: 4px;">
+                  ${icon('phone', { size: 13, className: 'text-muted' })}
+                  <span>${escapeHtml(profile?.phone || 'No phone')}</span>
+                </span>
+                <span aria-hidden="true" style="opacity: 0.4;">·</span>
+                <span style="display: inline-flex; align-items: center; gap: 4px;">
+                  ${icon('whatsapp', { size: 13, className: 'text-muted' })}
+                  <span>${escapeHtml(profile?.whatsapp || profile?.phone || 'No WhatsApp')}</span>
+                </span>
               </div>
             </div>
             ${icon('chevron-right', { size: 18, className: 'settings-chevron' })}
